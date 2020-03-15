@@ -1,0 +1,8 @@
+.note-editable { background-color: #F7F5F8 !important; border: none; }
+.panel-default>.panel-heading, .note-editor.note-frame, .note-editor.note-airframe{
+    border: none;
+}
+.note-modal .form-group {
+    background-color: #f8f8f8;
+    padding: 5px;
+}

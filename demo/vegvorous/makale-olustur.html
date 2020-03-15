@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="tr">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>MAKALE OLUŞTUR - Vegvorous</title>
+
+
+        <link href="https://fonts.googleapis.com/css?family=Barlow&display=swap" rel="stylesheet">
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+		<script src="public/plugins/tagify/dist/tagify.min.js"></script>
+	  	<script src="public/plugins/tagify/dist/tagify.polyfills.min.js"></script>
+	 	<link href="public/plugins/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+
+        <link href="public/css/style.css" rel="stylesheet">
+        <script src="public/article-creation-form.js"></script>
+
+        <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.3/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+        <style>
+
+        </style>
+    </head>
+    <body>
+        <div class="container" id="wrapper">
+			<h3 class="text-center">MAKALE OLUŞTUR</h3>
+			<hr>
+            <form id="create-form" action="" method="post" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="title">BAŞLIK *</label>
+                    <input type="text" id="title" name="title" class="form-control">
+                </div>
+				<div class="form-group">
+                    <label for="preamble">ALT BAŞLIK *</label><br>
+						&nbsp;&nbsp;&nbsp;Maksimum <small id="preamble-count"></small> karakter olmalıdır.
+                    <textarea id="preamble" name="preamble" class="form-control"rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="content">İÇERİK *</label>
+                    <textarea name="content" id="content" rows="5" class="form-control"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>GÖRSEL *
+                        <i id="re-upload-btn" class="glyphicon glyphicon-plus"></i>
+                        <i id="remove-btn" class="glyphicon glyphicon-remove"></i></label><br>
+					&nbsp;&nbsp;&nbsp;<small>Görsel boyutu maksimum <strong>1 MB</strong> olabilir.</small>
+                    <label class="files-upload-area" for="file">
+                        <i class="glyphicon glyphicon-plus"></i>
+                    </label>
+                    <label class="viewing-selected-files-area">
+
+                    </label>
+                    <input type="file" id="file" name="file" class="form-control"  accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="tags">ETİKETLER *</label><br>
+					&nbsp;&nbsp;&nbsp;<small>Kelimeleri virgül ile ayırın: <strong>Bebek sağlığı, Kitap tavsiyesi, Aktivizm</strong> gibi. En az <strong>3</strong>, en fazla <strong>10</strong> adet.</small>
+                    <input type="text" id="tags" name="tags" class="form-control">
+                </div>
+                <div class="form-group text-center">
+                    <button type="button" class="btn-send-to-draft">TASLAKLARA KAYDET</button>
+                    &nbsp;
+                    <button type="button" class="btn-send-for-approval" id="approval">ONAYA GÖNDER</button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            $(document).ready(function() {
+                $('#content').summernote({
+                    placeholder: '',
+                    tabsize: 2,
+                    height: 300,
+                    lang: 'tr-TR', // default: 'en-US'
+                    toolbar: [
+                        ['style', ['style']],
+                        ['font', ['bold', 'underline', 'clear']],
+                        ['color', ['color']],
+                        ['para', ['ul', 'ol', 'paragraph']],
+                        ['table', ['table']],
+                        ['insert', ['link', 'picture', 'video']],
+                        ['view', ['codeview','fullscreen']]
+                    ],
+					maximumImageFileSize: 1024*1024, // 500 KB
+					callbacks:{
+						onImageUploadError: function(msg){
+						   alert(msg + ' (1 MB)');
+						}
+					}
+                });
+            });
+        </script>
+
+        <!-- include summernote css/js -->
+        <link href="public/plugins/summernote/dist/summernote.css" rel="stylesheet">
+        <link href="public/css/summernote-fixed.css" rel="stylesheet">
+        <script src="public/plugins/summernote/dist/summernote.js"></script>
+        <script src="public/plugins/summernote/dist/lang/summernote-tr-TR.js"></script>
+    </body>
+</html>
