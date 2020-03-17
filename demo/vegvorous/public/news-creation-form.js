@@ -47,22 +47,22 @@ $(document).ready(function() {
 	new Tagify(input,{
 		maxTags:10
 	});
-	
+
 	// önsöz
-	$('small#preamble-count').html('<strong style="color:#C9BCCF;">280</strong>');
+	$('small#preamble-count').html('<strong>280</strong>');
 	$('textarea#preamble').keyup(function(){
 		let preamble = $('textarea#preamble').val();
 		let remainingCharacter = (280-preamble.length);
-		
+
 		if(remainingCharacter < 0){
 			remainingCharacter = '<strong style="color:red;">'+remainingCharacter+'</strong>';
 		} else {
-			remainingCharacter = '<strong style="color:#C9BCCF;">'+remainingCharacter+'</strong>';
+			remainingCharacter = '<strong>'+remainingCharacter+'</strong>';
 		}
-		
+
 		$('small#preamble-count').html(remainingCharacter);
-	})
-	
+	});
+
 	$('button#approval').on('click', function(){
 		
 		// başlık kontrolü
