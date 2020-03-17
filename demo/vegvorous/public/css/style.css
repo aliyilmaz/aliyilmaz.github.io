@@ -155,12 +155,9 @@ label.viewing-selected-files-area>div.other-object>h5#fileSize{
     border: none;
     margin: 4px;
 }
-.btn-send-for-approval {
-    border: none;
-    outline: none;
-    cursor: pointer;
-    position: relative;
-    z-index: 0;
+.btn-send-to-draft:hover,
+.btn-send-for-approval:hover{
+    background-color: #b7acbd;
 }
 /* sample-img*/
 #sample-img{
