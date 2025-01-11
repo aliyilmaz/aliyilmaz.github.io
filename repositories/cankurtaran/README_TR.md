@@ -13,10 +13,10 @@ Proje aşağıdaki harita ve işaretleme özelliklerine sahiptir:
 - **Marker Oluşturma:** Harita üzerinde belirli noktalara işaretler (marker) yerleştirebilirsiniz.
 - **CircleMarker Oluşturma:** Dairesel işaretleyiciler (circle marker) ekleyebilirsiniz.
 
-### Export ve Import
-- **GeoJSON olarak Export:** Yaptığınız tüm işaretlemeleri ve şekilleri GeoJSON formatında dışa aktarabilirsiniz.
+### İndir ve Yükle
+- **GeoJSON olarak İndirme:** Yaptığınız tüm işaretlemeleri ve şekilleri GeoJSON formatında dışa aktarabilirsiniz.
 
-- **GeoJSON'u Import Etme:** Önceden dışa aktarılan GeoJSON dosyasını içeri aktararak harita üzerinde tekrar görüntüleyebilirsiniz.
+- **GeoJSON'u Yükleme:** Önceden dışa aktarılan GeoJSON dosyasını içeri aktararak harita üzerinde tekrar görüntüleyebilirsiniz.
 
 ### Kullanım
 **1. Harita Görüntüleme:** Sistemi açtığınızda harita otomatik olarak yüklenir.
@@ -46,9 +46,13 @@ Bu proje aşağıdaki teknolojilerle geliştirilmiştir:
 Bu projeye katkıda bulunmak isterseniz, lütfen şu adımları izleyin:
 
 **1. Repo'yu forklayın.**
+
 **2. Yeni bir branş oluşturun** (``git checkout -b feature-isim``).
+
 **3. Yapacağınız değişiklikleri commitleyin** (``git commit -am 'Yeni özellik'``).
+
 **4. Değişikliklerinizi push'layın** (``git push origin feature-isim``).
+
 **5. Bir pull request oluşturun.**
 
 ### Lisans
