@@ -432,9 +432,9 @@
             };
             showExportButton.addTo(this._map);
 
-            document.getElementById('geojson-export').addEventListener('click', function() {
+            document.getElementById('geojson-export').onclick = function () {
                 this._geojsonExport();
-            }.bind(this));
+            }.bind(this);
         },
 
         _addImportButton: function () {
@@ -653,38 +653,30 @@
 
         _geojsonExport: function() {
             const labels = this._getAllTextBoxLabels();
-            
             if (this._drawnItems) {                
                 let drawnItemsJson = this._drawnItems.toGeoJSON();
-                
+                    
                 if (drawnItemsJson.features) {
                     labels.forEach(function(label){
+                        
                         if (label.properties && label.properties.type === 'Label') {
                             drawnItemsJson.features.push(label);                            
                         }
                     });
-                }
+                } 
         
-                let jsonData = JSON.stringify(drawnItemsJson);
-        
-                let blob = new Blob([jsonData], { type: 'application/json' });
-                let url = URL.createObjectURL(blob);
-        
+                let jsonData = JSON.stringify(drawnItemsJson);      
+                let dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonData);
                 let datenow = new Date();
                 let exportFileDefaultName = 'export_draw_' + datenow.toLocaleDateString('en-GB') + '.geojson';
-        
                 let linkElement = document.createElement('a');
-                linkElement.setAttribute('href', url);
+                linkElement.setAttribute('href', dataUri);
                 linkElement.setAttribute('download', exportFileDefaultName);
-                
                 linkElement.click();
-                        
-                URL.revokeObjectURL(url);
             } else {
                 console.error("drawnItems is not defined.");
             }
         }
-        
              
         
         
