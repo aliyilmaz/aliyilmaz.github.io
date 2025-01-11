@@ -432,9 +432,9 @@
             };
             showExportButton.addTo(this._map);
 
-            document.getElementById('geojson-export').onclick = function () {
+            document.getElementById('geojson-export').addEventListener('click', function() {
                 this._geojsonExport();
-            }.bind(this);
+            }.bind(this));
         },
 
         _addImportButton: function () {
