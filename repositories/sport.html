@@ -356,6 +356,38 @@
             width: 18px;
             height: 18px;
         }
+        
+        .settings-select {
+            margin-bottom: 15px;
+        }
+        
+        .settings-select label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .settings-select select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            background-color: white;
+        }
+        
+        .pool-length-input {
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .pool-length-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
 
         /* Küçük ekranlar için medya sorguları */
         @media (max-height: 700px) {
@@ -430,7 +462,7 @@
         <div class="info-item" id="distance">0 m</div>
         <div class="info-item" id="speed">0 km/s</div>
         <div class="info-item" id="duration">00:00:00</div>
-        <div class="info-item" id="accuracy">Doğruluk: -</div>
+        <div class="info-item" id="accuracy">~ -</div>
     </div>
     
     <div class="control-buttons">
@@ -457,6 +489,23 @@
     <div class="settings-modal" id="settingsModal">
         <div class="settings-content">
             <div class="settings-title">Ayarlar</div>
+            
+            <div class="settings-section">
+                <div class="settings-section-title">Spor Türü</div>
+                <div class="settings-select">                    
+                    <select id="sportType">                        
+                        <option value="running">Koşu</option>
+                        <option value="walking">Yürüyüş</option>
+                        <option value="cycling">Bisiklet</option>
+                        <option value="open_water_swimming">Açık suda Yüzme</option>
+                        <option value="pool_swimming">Havuzda Yüzme</option>
+                    </select>
+                </div>
+                <div class="pool-length-input" id="poolLengthContainer">
+                    <label for="poolLength">Havuz Uzunluğu (metre):</label>
+                    <input type="number" id="poolLength" min="10" max="100" value="25">
+                </div>
+            </div>
             
             <div class="settings-section">
                 <div class="settings-section-title">Hassasiyet</div>
@@ -564,6 +613,11 @@
         const kalmanFilterCheckbox = document.getElementById('kalmanFilter');
         const accelerometerFilterCheckbox = document.getElementById('accelerometerFilter');
         
+        // Spor türü kontrolleri
+        const sportTypeSelect = document.getElementById('sportType');
+        const poolLengthInput = document.getElementById('poolLength');
+        const poolLengthContainer = document.getElementById('poolLengthContainer');
+        
         // Değişkenler
         let isTracking = false;
         let watchId = null;
@@ -595,9 +649,10 @@
         // IndexedDB başlatma
         let db;
         const DB_NAME = 'JourneyTrackerDB';
-        const DB_VERSION = 1;
+        const DB_VERSION = 2; // Versiyonu artırdık çünkü yeni store ekliyoruz
         const STORE_NAME = 'journeys';
         const SETTINGS_STORE_NAME = 'settings';
+        const SPORT_SETTINGS_STORE_NAME = 'sport_settings';
         
         // İvmeölçer başlatma
         function initAccelerometer() {
@@ -651,18 +706,27 @@
                 db = event.target.result;
                 loadJourneys();
                 loadFilterSettings();
+                loadSportSettings();
             };
             
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
+                
+                // Journeys store
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
                     store.createIndex('date', 'date', { unique: false });
                     store.createIndex('name', 'name', { unique: false });
                 }
                 
+                // Settings store
                 if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
                     const settingsStore = db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'id' });
+                }
+                
+                // Sport settings store
+                if (!db.objectStoreNames.contains(SPORT_SETTINGS_STORE_NAME)) {
+                    const sportSettingsStore = db.createObjectStore(SPORT_SETTINGS_STORE_NAME, { keyPath: 'id' });
                 }
             };
         }
@@ -696,6 +760,30 @@
             };
         }
         
+        // Spor ayarlarını yükle
+        function loadSportSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SPORT_SETTINGS_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(SPORT_SETTINGS_STORE_NAME);
+            const request = store.get('sportSettings');
+            
+            request.onsuccess = (event) => {
+                const settings = event.target.result;
+                if (settings) {
+                    sportTypeSelect.value = settings.sportType || 'walking';
+                    poolLengthInput.value = settings.poolLength || 25;
+                    
+                    // Havuz uzunluğu input'unu göster/gizle
+                    togglePoolLengthInput();
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Spor ayarları yüklenirken hata oluştu:', event.target.error);
+            };
+        }
+        
         // Filtre ayarlarını kaydet
         function saveFilterSettings() {
             if (!db) return;
@@ -726,6 +814,31 @@
             };
         }
         
+        // Spor ayarlarını kaydet
+        function saveSportSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SPORT_SETTINGS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(SPORT_SETTINGS_STORE_NAME);
+            
+            const settings = {
+                id: 'sportSettings',
+                sportType: sportTypeSelect.value,
+                poolLength: parseInt(poolLengthInput.value) || 25
+            };
+            
+            store.put(settings);
+        }
+        
+        // Havuz uzunluğu input'unu göster/gizle
+        function togglePoolLengthInput() {
+            if (sportTypeSelect.value === 'pool_swimming') {
+                poolLengthContainer.style.display = 'block';
+            } else {
+                poolLengthContainer.style.display = 'none';
+            }
+        }
+        
         // Mesafeyi formatla (metre/km)
         function formatDistance(meters) {
             if (meters < 1000) {
@@ -745,12 +858,30 @@
             const endTime = new Date();
             const duration = endTime - startTime;
             
+            // Spor türü bilgisini al
+            let sportInfo = '';
+            if (sportTypeSelect.value === 'pool_swimming') {
+                const poolLength = parseInt(poolLengthInput.value) || 25;
+                const laps = Math.round(totalDistance / poolLength);
+                sportInfo = `Havuz: ${poolLength}m, Tur: ${laps}`;
+            } else {
+                const sportTypes = {
+                    'walking': 'Yürüyüş',
+                    'running': 'Koşu',
+                    'open_water_swimming': 'Açık Su Yüzme',
+                    'pool_swimming': 'Havuz Yüzme'
+                };
+                sportInfo = sportTypes[sportTypeSelect.value] || 'Yürüyüş';
+            }
+            
             const journey = {
                 date: startTime,
                 name: `Yolculuk ${formatDate(startTime)}`,
                 positions: positions,
                 distance: totalDistance,
-                duration: duration
+                duration: duration,
+                sportType: sportTypeSelect.value,
+                sportInfo: sportInfo
             };
             
             const request = store.add(journey);
@@ -783,7 +914,8 @@
                     // Arama filtresi
                     if (!searchTerm || 
                         journey.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        formatDate(journey.date).toLowerCase().includes(searchTerm.toLowerCase())) {
+                        formatDate(journey.date).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (journey.sportInfo && journey.sportInfo.toLowerCase().includes(searchTerm.toLowerCase()))) {
                         
                         const li = document.createElement('li');
                         li.className = 'journey-item';
@@ -800,10 +932,15 @@
                         
                         const statsDiv = document.createElement('div');
                         statsDiv.className = 'journey-stats';
-                        statsDiv.innerHTML = `
-                            ${formatDate(journey.date)}<br>
-                            ${formatDistance(journey.distance * 1000)}, ${formatDuration(journey.duration)}
-                        `;
+                        
+                        let statsHTML = `${formatDate(journey.date)}<br>`;
+                        statsHTML += `${formatDistance(journey.distance * 1000)}, ${formatDuration(journey.duration)}`;
+                        
+                        if (journey.sportInfo) {
+                            statsHTML += `<br>${journey.sportInfo}`;
+                        }
+                        
+                        statsDiv.innerHTML = statsHTML;
                         
                         infoDiv.appendChild(nameInput);
                         infoDiv.appendChild(statsDiv);
@@ -938,7 +1075,7 @@
             distanceElement.textContent = "0 m";
             speedElement.textContent = "0 km/s";
             durationElement.textContent = "00:00:00";
-            accuracyElement.textContent = "Doğruluk: -";
+            accuracyElement.textContent = "~ -";
             
             // Süre sayacını başlat
             updateDuration();
@@ -1004,7 +1141,7 @@
             const coords = position.coords;
             
             // Doğruluk bilgisini göster
-            accuracyElement.textContent = `Doğruluk: ${coords.accuracy.toFixed(1)}m`;
+            accuracyElement.textContent = `~ ${coords.accuracy.toFixed(1)}m`;
             
             // Doğruluk filtresi (eğer etkinse)
             if (accuracyFilterCheckbox.checked && coords.accuracy > MIN_ACCURACY) {
@@ -1217,6 +1354,14 @@
         speedFilterCheckbox.addEventListener('change', saveFilterSettings);
         kalmanFilterCheckbox.addEventListener('change', saveFilterSettings);
         accelerometerFilterCheckbox.addEventListener('change', saveFilterSettings);
+        
+        // Spor türü değiştiğinde
+        sportTypeSelect.addEventListener('change', function() {
+            togglePoolLengthInput();
+            saveSportSettings();
+        });
+        
+        poolLengthInput.addEventListener('change', saveSportSettings);
         
         // Çift tıklama ve yakınlaştırmayı önleme
         document.addEventListener('dblclick', function(e) {
