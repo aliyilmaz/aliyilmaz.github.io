@@ -427,7 +427,7 @@
     <div id="map"></div>
     
     <div class="info-panel">
-        <div class="info-item" id="distance">0 km</div>
+        <div class="info-item" id="distance">0 m</div>
         <div class="info-item" id="speed">0 km/s</div>
         <div class="info-item" id="duration">00:00:00</div>
         <div class="info-item" id="accuracy">Doğruluk: -</div>
@@ -475,12 +475,58 @@
                         <input type="checkbox" id="speedFilter"> Hız Filtresi
                     </label>
                 </div>
+                <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="kalmanFilter"> Kalman Filtresi
+                    </label>
+                </div>
+                <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="accelerometerFilter"> İvmeölçer Filtresi
+                    </label>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // Kalman Filtresi sınıfı
+        class KalmanFilter {
+            constructor(R = 1, Q = 1, A = 1, B = 0, C = 1) {
+                this.R = R; // Process noise
+                this.Q = Q; // Measurement noise
+                this.A = A; // State transition matrix
+                this.B = B; // Control input matrix
+                this.C = C; // Measurement matrix
+                
+                this.cov = Number.NaN;
+                this.x = Number.NaN; // Estimated value
+            }
+            
+            filter(z, u = 0) {
+                if (isNaN(this.x)) {
+                    this.x = (1 / this.C) * z;
+                    this.cov = (1 / this.C) * this.Q * (1 / this.C);
+                } else {
+                    // Predict
+                    const predX = (this.A * this.x) + (this.B * u);
+                    const predCov = ((this.A * this.cov) * this.A) + this.R;
+                    
+                    // Update
+                    const K = predCov * this.C * (1 / ((this.C * predCov * this.C) + this.Q));
+                    this.x = predX + K * (z - (this.C * predX));
+                    this.cov = predCov - (K * this.C * predCov);
+                }
+                return this.x;
+            }
+            
+            reset() {
+                this.cov = Number.NaN;
+                this.x = Number.NaN;
+            }
+        }
+
         // Medyan Filtresi
         function medianFilter(values, windowSize = 3) {
             if (values.length < windowSize) return values[values.length - 1];
@@ -515,6 +561,8 @@
         const medianFilterCheckbox = document.getElementById('medianFilter');
         const accuracyFilterCheckbox = document.getElementById('accuracyFilter');
         const speedFilterCheckbox = document.getElementById('speedFilter');
+        const kalmanFilterCheckbox = document.getElementById('kalmanFilter');
+        const accelerometerFilterCheckbox = document.getElementById('accelerometerFilter');
         
         // Değişkenler
         let isTracking = false;
@@ -529,6 +577,15 @@
         let recentPositions = [];
         let recentSpeeds = [];
         
+        // Kalman filtreleri
+        let kalmanLat = new KalmanFilter(0.0001, 0.01);
+        let kalmanLng = new KalmanFilter(0.0001, 0.01);
+        
+        // İvmeölçer verileri
+        let accelerometerData = { x: 0, y: 0, z: 0 };
+        let isAccelerometerAvailable = false;
+        let lastAccelerometerUpdate = 0;
+        
         // Filtreleme ayarları
         const MIN_ACCURACY = 50; // Metre cinsinden maksimum kabul edilebilir hata payı
         const MIN_DISTANCE = 5; // Metre cinsinden minimum mesafe eşiği
@@ -541,6 +598,47 @@
         const DB_VERSION = 1;
         const STORE_NAME = 'journeys';
         const SETTINGS_STORE_NAME = 'settings';
+        
+        // İvmeölçer başlatma
+        function initAccelerometer() {
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', handleMotionEvent);
+                isAccelerometerAvailable = true;
+                console.log("İvmeölçer başlatıldı");
+            } else {
+                console.log("Cihaz ivmeölçer desteklemiyor");
+            }
+        }
+        
+        function handleMotionEvent(event) {
+            if (event.accelerationIncludingGravity) {
+                accelerometerData = {
+                    x: event.accelerationIncludingGravity.x,
+                    y: event.accelerationIncludingGravity.y,
+                    z: event.accelerationIncludingGravity.z
+                };
+                lastAccelerometerUpdate = Date.now();
+            }
+        }
+        
+        // Hareket durumu tespiti
+        function isDeviceMoving() {
+            // Son ivmeölçer verisinin güncelliğini kontrol et
+            if (Date.now() - lastAccelerometerUpdate > 1000) {
+                return true; // Veri yoksa varsayılan olarak hareket ediyor kabul et
+            }
+            
+            // İvmeölçer verilerine göre hareket durumu
+            const acceleration = Math.sqrt(
+                Math.pow(accelerometerData.x, 2) +
+                Math.pow(accelerometerData.y, 2) +
+                Math.pow(accelerometerData.z, 2)
+            );
+            
+            // Sabit durumda yaklaşık 9.8 m/s² (yerçekimi)
+            // Eşik değerinden büyükse hareket var demektir
+            return Math.abs(acceleration - 9.8) > 0.3;
+        }
         
         function initDB() {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -583,6 +681,13 @@
                     medianFilterCheckbox.checked = settings.medianFilter || false;
                     accuracyFilterCheckbox.checked = settings.accuracyFilter || false;
                     speedFilterCheckbox.checked = settings.speedFilter || false;
+                    kalmanFilterCheckbox.checked = settings.kalmanFilter || false;
+                    accelerometerFilterCheckbox.checked = settings.accelerometerFilter || false;
+                }
+                
+                // İvmeölçer filtresi seçiliyse başlat
+                if (accelerometerFilterCheckbox.checked) {
+                    initAccelerometer();
                 }
             };
             
@@ -602,14 +707,32 @@
                 id: 'filterSettings',
                 medianFilter: medianFilterCheckbox.checked,
                 accuracyFilter: accuracyFilterCheckbox.checked,
-                speedFilter: speedFilterCheckbox.checked
+                speedFilter: speedFilterCheckbox.checked,
+                kalmanFilter: kalmanFilterCheckbox.checked,
+                accelerometerFilter: accelerometerFilterCheckbox.checked
             };
             
             const request = store.put(settings);
             
+            request.onsuccess = () => {
+                // İvmeölçer filtresi seçiliyse başlat
+                if (accelerometerFilterCheckbox.checked && !isAccelerometerAvailable) {
+                    initAccelerometer();
+                }
+            };
+            
             request.onerror = (event) => {
                 console.error('Filtre ayarları kaydedilirken hata oluştu:', event.target.error);
             };
+        }
+        
+        // Mesafeyi formatla (metre/km)
+        function formatDistance(meters) {
+            if (meters < 1000) {
+                return `${meters.toFixed(0)} m`;
+            } else {
+                return `${(meters / 1000).toFixed(2)} km`;
+            }
         }
         
         // Yolculuk kaydetme
@@ -679,7 +802,7 @@
                         statsDiv.className = 'journey-stats';
                         statsDiv.innerHTML = `
                             ${formatDate(journey.date)}<br>
-                            ${journey.distance.toFixed(2)} km, ${formatDuration(journey.duration)}
+                            ${formatDistance(journey.distance * 1000)}, ${formatDuration(journey.duration)}
                         `;
                         
                         infoDiv.appendChild(nameInput);
@@ -802,8 +925,17 @@
             recentPositions = [];
             recentSpeeds = [];
             
+            // Kalman filtrelerini sıfırla
+            kalmanLat.reset();
+            kalmanLng.reset();
+            
+            // İvmeölçer başlat (eğer filtresi etkinse)
+            if (accelerometerFilterCheckbox.checked && !isAccelerometerAvailable) {
+                initAccelerometer();
+            }
+            
             // Bilgileri sıfırla
-            distanceElement.textContent = "0 km";
+            distanceElement.textContent = "0 m";
             speedElement.textContent = "0 km/s";
             durationElement.textContent = "00:00:00";
             accuracyElement.textContent = "Doğruluk: -";
@@ -895,6 +1027,35 @@
                 timestamp: position.timestamp
             };
             
+            // İvmeölçer filtresi (eğer etkinse)
+            if (accelerometerFilterCheckbox.checked && isAccelerometerAvailable) {
+                const isMoving = isDeviceMoving();
+                
+                if (!isMoving && lastCoords) {
+                    // Cihaz hareket etmiyorsa, konum değişimlerini şüpheyle karşıla
+                    const R = 6371;
+                    const dLat = deg2rad(coords.latitude - lastCoords.latitude);
+                    const dLon = deg2rad(coords.longitude - lastCoords.longitude);
+                    const a = 
+                        Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(deg2rad(lastCoords.latitude)) * Math.cos(deg2rad(coords.latitude)) * 
+                        Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    const distance = R * c * 1000; // metre cinsinden
+                    
+                    if (distance > 10) { // 10 metreden fazla sapma
+                        console.log("Cihaz hareket etmiyor ama konum değişti, filtrele:", distance);
+                        return; // Bu konumu atla
+                    }
+                }
+            }
+            
+            // Kalman filtresi (eğer etkinse)
+            if (kalmanFilterCheckbox.checked) {
+                filteredCoords.latitude = kalmanLat.filter(coords.latitude);
+                filteredCoords.longitude = kalmanLng.filter(coords.longitude);
+            }
+            
             // Medyan filtresi (eğer etkinse)
             if (medianFilterCheckbox.checked) {
                 recentPositions.push({
@@ -948,9 +1109,9 @@
                 return;
             }
             
-            // Toplam mesafeyi güncelle
-            totalDistance += distance;
-            distanceElement.textContent = `${totalDistance.toFixed(2)} km`;
+            // Toplam mesafeyi güncelle (metre cinsinden)
+            totalDistance += distance * 1000;
+            distanceElement.textContent = formatDistance(totalDistance);
             
             // Hızı güncelle
             const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
@@ -1054,6 +1215,8 @@
         medianFilterCheckbox.addEventListener('change', saveFilterSettings);
         accuracyFilterCheckbox.addEventListener('change', saveFilterSettings);
         speedFilterCheckbox.addEventListener('change', saveFilterSettings);
+        kalmanFilterCheckbox.addEventListener('change', saveFilterSettings);
+        accelerometerFilterCheckbox.addEventListener('change', saveFilterSettings);
         
         // Çift tıklama ve yakınlaştırmayı önleme
         document.addEventListener('dblclick', function(e) {
