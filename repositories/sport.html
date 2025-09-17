@@ -518,7 +518,6 @@
             width: 100%;
             height: 200px;
         }
-        
     </style>
 </head>
 <body>
@@ -529,7 +528,6 @@
         <div class="info-item" id="speed">0 km/s</div>
         <div class="info-item" id="duration">00:00:00</div>
         <div class="info-item" id="accuracy">~ -</div>
-        <div class="info-item" id="avg100m" style="display:none;">100m Ort: -</div>
     </div>
     
     <div class="control-buttons">
@@ -666,7 +664,6 @@
         const speedElement = document.getElementById('speed');
         const durationElement = document.getElementById('duration');
         const accuracyElement = document.getElementById('accuracy');
-        const avg100mElement = document.getElementById('avg100m');
         const toggleBtn = document.getElementById('toggleBtn');
         const historyBtn = document.getElementById('historyBtn');
         const historyModal = document.getElementById('historyModal');
@@ -847,9 +844,6 @@
                     
                     // Havuz uzunluğu input'unu göster/gizle
                     togglePoolLengthInput();
-                    
-                    // 100m ortalamasını göster/gizle
-                    toggle100mAverage();
                 }
             };
             
@@ -902,9 +896,6 @@
             };
             
             store.put(settings);
-            
-            // 100m ortalamasını göster/gizle
-            toggle100mAverage();
         }
         
         // Havuz uzunluğu input'unu göster/gizle
@@ -913,15 +904,6 @@
                 poolLengthContainer.style.display = 'block';
             } else {
                 poolLengthContainer.style.display = 'none';
-            }
-        }
-        
-        // 100m ortalamasını göster/gizle
-        function toggle100mAverage() {
-            if (sportTypeSelect.value === 'pool_swimming' || sportTypeSelect.value === 'open_water_swimming') {
-                avg100mElement.style.display = 'block';
-            } else {
-                avg100mElement.style.display = 'none';
             }
         }
         
@@ -943,6 +925,21 @@
             }
         }
         
+        // 100m ortalama süresini hesapla (dakika:saniye formatında)
+        function calculate100mAverageTime(totalDistance, totalTime) {
+            if (totalDistance <= 0 || totalTime <= 0) return "0:00";
+            
+            // 100m başına düşen süreyi hesapla (milisaniye cinsinden)
+            const timePer100m = (totalTime / totalDistance) * 100;
+            
+            // Dakika ve saniyeye çevir
+            const totalSeconds = timePer100m / 1000;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
         // Yolculuk kaydetme
         function saveJourney() {
             if (positions.length === 0) return;
@@ -962,7 +959,7 @@
                 avgSpeed = speedData.reduce((sum, s) => sum + s.speed, 0) / speedData.length;
             }
             
-            // 100m ortalama hızını hesapla (toplam süre ve mesafeden)
+            // 100m ortalama süresini hesapla (toplam süre ve mesafeden)
             let avg100mTime = calculate100mAverageTime(totalDistance, duration);
             
             // Spor türü bilgisini al
@@ -1009,32 +1006,6 @@
             request.onerror = (event) => {
                 console.error('Kayıt hatası:', event.target.error);
             };
-        }
-        
-        // 100m ortalama süresini hesapla (dakika:saniye formatında)
-        function calculate100mAverageTime(totalDistance, totalTime) {
-            if (totalDistance <= 0 || totalTime <= 0) return "0:00";
-            
-            // 100m başına düşen süreyi hesapla (milisaniye cinsinden)
-            const timePer100m = (totalTime / totalDistance) * 100;
-            
-            // Dakika ve saniyeye çevir
-            const totalSeconds = timePer100m / 1000;
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = Math.floor(totalSeconds % 60);
-            
-            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        }
-        
-        // Gerçek zamanlı 100m ortalama süresini hesapla
-        function update100mAverage() {
-            if (totalDistance <= 0 || !startTime) return;
-            
-            const currentTime = new Date();
-            const elapsedTime = currentTime - startTime;
-            
-            const avg100mTime = calculate100mAverageTime(totalDistance, elapsedTime);
-            avg100mElement.textContent = `100m Ort: ${avg100mTime}`;
         }
         
         // Yolculukları yükleme
@@ -1359,10 +1330,6 @@
             speedElement.textContent = "0 km/s";
             durationElement.textContent = "00:00:00";
             accuracyElement.textContent = "~ -";
-            avg100mElement.textContent = "100m Ort: -";
-            
-            // 100m ortalamasını göster/gizle
-            toggle100mAverage();
             
             // Hız göstergesi rengini sıfırla
             speedElement.style.color = '#222';
@@ -1560,11 +1527,6 @@
             const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
             speedElement.textContent = `${speed.toFixed(1)} km/s`;
             
-            // 100m ortalama süresini güncelle (yüzme türleri için)
-            if (sportTypeSelect.value === 'pool_swimming' || sportTypeSelect.value === 'open_water_swimming') {
-                update100mAverage();
-            }
-            
             // Hız göstergesini güncelle
             updateSpeedIndicator();
             
@@ -1626,11 +1588,6 @@
             const now = new Date();
             const diff = now - startTime;
             durationElement.textContent = formatDuration(diff);
-            
-            // 100m ortalama süresini güncelle (yüzme türleri için)
-            if ((sportTypeSelect.value === 'pool_swimming' || sportTypeSelect.value === 'open_water_swimming') && totalDistance > 0) {
-                update100mAverage();
-            }
         }
         
         // Yardımcı fonksiyonlar
@@ -1699,7 +1656,6 @@
         // Spor türü değiştiğinde
         sportTypeSelect.addEventListener('change', function() {
             togglePoolLengthInput();
-            toggle100mAverage();
             saveSportSettings();
         });
         
