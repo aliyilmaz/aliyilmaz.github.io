@@ -505,6 +505,21 @@
                 padding: 10px;
             }
         }
+        /* Mevcut CSS kodları aynı kaldı, sadece chart bar için ek stil */
+        .chart-bar-container {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .chart-bar-canvas {
+            width: 100%;
+            height: 200px;
+        }
+        
+        /* Diğer stiller aynı */
     </style>
 </head>
 <body>
@@ -515,6 +530,7 @@
         <div class="info-item" id="speed">0 km/s</div>
         <div class="info-item" id="duration">00:00:00</div>
         <div class="info-item" id="accuracy">~ -</div>
+        <div class="info-item" id="avg100m" style="display:none;">100m Ort: -</div>
     </div>
     
     <div class="control-buttons">
@@ -651,6 +667,7 @@
         const speedElement = document.getElementById('speed');
         const durationElement = document.getElementById('duration');
         const accuracyElement = document.getElementById('accuracy');
+        const avg100mElement = document.getElementById('avg100m');
         const toggleBtn = document.getElementById('toggleBtn');
         const historyBtn = document.getElementById('historyBtn');
         const historyModal = document.getElementById('historyModal');
@@ -685,6 +702,9 @@
         let recentSpeeds = [];
         let speedData = [];
         let currentSpeeds = [];
+        let last100mSegments = [];
+        let last100mTime = 0;
+        let last100mDistance = 0;
         
         // Kalman filtreleri
         let kalmanLat = new KalmanFilter(0.0001, 0.01);
@@ -704,7 +724,7 @@
         // IndexedDB başlatma
         let db;
         const DB_NAME = 'JourneyTrackerDB';
-        const DB_VERSION = 3; // Versiyonu artırdık çünkü yeni store ekliyoruz
+        const DB_VERSION = 3;
         const STORE_NAME = 'journeys';
         const SETTINGS_STORE_NAME = 'settings';
         const SPORT_SETTINGS_STORE_NAME = 'sport_settings';
@@ -831,6 +851,9 @@
                     
                     // Havuz uzunluğu input'unu göster/gizle
                     togglePoolLengthInput();
+                    
+                    // 100m ortalamasını göster/gizle
+                    toggle100mAverage();
                 }
             };
             
@@ -883,6 +906,9 @@
             };
             
             store.put(settings);
+            
+            // 100m ortalamasını göster/gizle
+            toggle100mAverage();
         }
         
         // Havuz uzunluğu input'unu göster/gizle
@@ -894,8 +920,26 @@
             }
         }
         
+        // 100m ortalamasını göster/gizle
+        function toggle100mAverage() {
+            if (sportTypeSelect.value === 'pool_swimming' || sportTypeSelect.value === 'open_water_swimming') {
+                avg100mElement.style.display = 'block';
+            } else {
+                avg100mElement.style.display = 'none';
+            }
+        }
+        
         // Mesafeyi formatla (metre/km)
         function formatDistance(meters) {
+            if (meters < 1000) {
+                return `${meters.toFixed(0)} m`;
+            } else {
+                return `${(meters / 1000).toFixed(2)} km`;
+            }
+        }
+        
+        // Yolculuk listesinde mesafe gösterimi
+        function formatDistanceForList(meters) {
             if (meters < 1000) {
                 return `${meters.toFixed(0)} m`;
             } else {
@@ -920,6 +964,12 @@
             if (speedData.length > 0) {
                 maxSpeed = Math.max(...speedData.map(s => s.speed));
                 avgSpeed = speedData.reduce((sum, s) => sum + s.speed, 0) / speedData.length;
+            }
+            
+            // 100m ortalama hızını hesapla
+            let avg100mSpeed = 0;
+            if (last100mSegments.length > 0) {
+                avg100mSpeed = last100mSegments.reduce((sum, s) => sum + s.speed, 0) / last100mSegments.length;
             }
             
             // Spor türü bilgisini al
@@ -950,7 +1000,8 @@
                 sportInfo: sportInfo,
                 speedData: speedData, // Hız verilerini kaydet
                 maxSpeed: maxSpeed,   // Maksimum hız
-                avgSpeed: avgSpeed    // Ortalama hız
+                avgSpeed: avgSpeed,   // Ortalama hız
+                avg100mSpeed: avg100mSpeed // 100m ortalama hızı
             };
             
             const request = store.add(journey);
@@ -960,6 +1011,9 @@
                 // Verileri sıfırla
                 speedData = [];
                 currentSpeeds = [];
+                last100mSegments = [];
+                last100mTime = 0;
+                last100mDistance = 0;
             };
             
             request.onerror = (event) => {
@@ -1006,7 +1060,7 @@
                         statsDiv.className = 'journey-stats';
                         
                         let statsHTML = `${formatDate(journey.date)}<br>`;
-                        statsHTML += `${formatDistance(journey.distance * 1000)}, ${formatDuration(journey.duration)}`;
+                        statsHTML += `${formatDistanceForList(journey.distance)}, ${formatDuration(journey.duration)}`;
                         
                         if (journey.sportInfo) {
                             statsHTML += `<br>${journey.sportInfo}`;
@@ -1015,6 +1069,11 @@
                         // Hız istatistiklerini ekle
                         if (journey.maxSpeed !== undefined) {
                             statsHTML += `<br>Max: ${journey.maxSpeed.toFixed(1)} km/s, Ort: ${journey.avgSpeed.toFixed(1)} km/s`;
+                        }
+                        
+                        // 100m ortalama hızını ekle (yüzme türleri için)
+                        if ((journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming') && journey.avg100mSpeed) {
+                            statsHTML += `<br>100m Ort: ${journey.avg100mSpeed.toFixed(1)} km/s`;
                         }
                         
                         statsDiv.innerHTML = statsHTML;
@@ -1068,7 +1127,7 @@
             };
         }
         
-        // Hız grafiği gösteren fonksiyon
+        // Hız grafiği gösteren fonksiyon (bar chart olarak)
         function showSpeedChart(journey) {
             // Modal oluştur veya var olanı kullan
             let chartModal = document.getElementById('speedChartModal');
@@ -1080,12 +1139,14 @@
                 chartModal.innerHTML = `
                     <div class="modal-content">
                         <h3>${journey.name} - Hız Grafiği</h3>
-                        <div class="speed-chart-container">
-                            <canvas id="speedChart" class="chart-canvas"></canvas>
+                        <div class="chart-bar-container">
+                            <canvas id="speedChart" class="chart-bar-canvas"></canvas>
                         </div>
                         <div class="speed-stats">
                             <div class="speed-stat max">Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s</div>
                             <div class="speed-stat avg">Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s</div>
+                            ${(journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming') && journey.avg100mSpeed ? 
+                                `<div class="speed-stat avg100m">100m Ortalama: ${journey.avg100mSpeed.toFixed(1)} km/s</div>` : ''}
                         </div>
                         <button id="closeChartBtn" style="margin-top: 15px; padding: 10px;">Kapat</button>
                     </div>
@@ -1108,6 +1169,22 @@
                 chartModal.querySelector('h3').textContent = `${journey.name} - Hız Grafiği`;
                 chartModal.querySelector('.speed-stat.max').textContent = `Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s`;
                 chartModal.querySelector('.speed-stat.avg').textContent = `Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s`;
+                
+                // 100m ortalama hızını güncelle (yüzme türleri için)
+                const avg100mElement = chartModal.querySelector('.speed-stat.avg100m');
+                if ((journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming') && journey.avg100mSpeed) {
+                    if (!avg100mElement) {
+                        const speedStats = chartModal.querySelector('.speed-stats');
+                        const newAvg100mElement = document.createElement('div');
+                        newAvg100mElement.className = 'speed-stat avg100m';
+                        newAvg100mElement.textContent = `100m Ortalama: ${journey.avg100mSpeed.toFixed(1)} km/s`;
+                        speedStats.appendChild(newAvg100mElement);
+                    } else {
+                        avg100mElement.textContent = `100m Ortalama: ${journey.avg100mSpeed.toFixed(1)} km/s`;
+                    }
+                } else if (avg100mElement) {
+                    avg100mElement.remove();
+                }
             }
             
             // Grafiği oluştur
@@ -1127,15 +1204,15 @@
             }
             
             window.speedChartInstance = new Chart(ctx, {
-                type: 'line',
+                type: 'bar', // Bar chart olarak değiştirildi
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Hız (km/s)',
                         data: speedValues,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
                         borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1,
-                        fill: false
+                        borderWidth: 1
                     }]
                 },
                 options: {
@@ -1153,6 +1230,11 @@
                             title: {
                                 display: true,
                                 text: 'Zaman'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10, // X ekseninde maksimum 10 işaret göster
+                                autoSkip: true,
+                                maxRotation: 0
                             }
                         }
                     }
@@ -1229,6 +1311,33 @@
             };
         }
         
+        // 100m ortalama hızını hesapla
+        function calculate100mAverage(speedKmh, distanceMeters, timestamp) {
+            // 100m'lik segmentleri takip et
+            if (distanceMeters - last100mDistance >= 100) {
+                const segmentTime = (timestamp - last100mTime) / 1000; // saniye
+                const segmentSpeed = 100 / segmentTime * 3.6; // km/s
+                
+                last100mSegments.push({
+                    speed: segmentSpeed,
+                    timestamp: timestamp
+                });
+                
+                // Son 5 segmenti sakla
+                if (last100mSegments.length > 5) {
+                    last100mSegments.shift();
+                }
+                
+                // Ortalamayı hesapla ve göster
+                const avgSpeed = last100mSegments.reduce((sum, s) => sum + s.speed, 0) / last100mSegments.length;
+                avg100mElement.textContent = `100m Ort: ${avgSpeed.toFixed(1)} km/s`;
+                
+                // Son 100m'i güncelle
+                last100mDistance = distanceMeters;
+                last100mTime = timestamp;
+            }
+        }
+        
         // Takip işlemini başlat
         function startTracking() {
             if (isTracking) return;
@@ -1246,6 +1355,9 @@
             recentSpeeds = [];
             speedData = [];
             currentSpeeds = [];
+            last100mSegments = [];
+            last100mTime = 0;
+            last100mDistance = 0;
             
             // Kalman filtrelerini sıfırla
             kalmanLat.reset();
@@ -1261,6 +1373,10 @@
             speedElement.textContent = "0 km/s";
             durationElement.textContent = "00:00:00";
             accuracyElement.textContent = "~ -";
+            avg100mElement.textContent = "100m Ort: -";
+            
+            // 100m ortalamasını göster/gizle
+            toggle100mAverage();
             
             // Hız göstergesi rengini sıfırla
             speedElement.style.color = '#222';
@@ -1317,6 +1433,9 @@
             // Hız verilerini sıfırla
             speedData = [];
             currentSpeeds = [];
+            last100mSegments = [];
+            last100mTime = 0;
+            last100mDistance = 0;
         }
         
         // Toggle buton işlevi
@@ -1458,6 +1577,14 @@
             const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
             speedElement.textContent = `${speed.toFixed(1)} km/s`;
             
+            // 100m ortalama hızını hesapla (yüzme türleri için)
+            if ((sportTypeSelect.value === 'pool_swimming' || sportTypeSelect.value === 'open_water_swimming') && totalDistance > 0) {
+                if (last100mTime === 0) {
+                    last100mTime = filteredCoords.timestamp;
+                }
+                calculate100mAverage(speed, totalDistance, filteredCoords.timestamp);
+            }
+            
             // Hız göstergesini güncelle
             updateSpeedIndicator();
             
@@ -1587,6 +1714,7 @@
         // Spor türü değiştiğinde
         sportTypeSelect.addEventListener('change', function() {
             togglePoolLengthInput();
+            toggle100mAverage();
             saveSportSettings();
         });
         
