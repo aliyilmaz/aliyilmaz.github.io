@@ -210,13 +210,14 @@
         }
         
         .journey-name {
-            width: 100%;
+            width: -webkit-fill-available;
             padding: 6px;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             touch-action: manipulation;
             font-size: 14px;
             margin-bottom: 5px;
+            margin-left:30px;
         }
         
         .journey-name:focus {
@@ -229,6 +230,13 @@
             font-size: 12px;
             color: #666;
             cursor: pointer;
+        }
+        
+        .journey-select{
+            position: absolute;
+            top: 20px;
+            left: 14px;
+            transform: scale(1.2);
         }
         
         .journey-actions {
