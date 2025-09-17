@@ -518,6 +518,38 @@
             width: 100%;
             height: 200px;
         }
+        
+        /* Yedekleme/Yükleme butonları için stil */
+        .backup-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .backup-btn {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            margin: 0 5px;
+        }
+        
+        .backup-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .backup-btn.import {
+            background-color: #2196F3;
+        }
+        
+        .backup-btn.import:hover {
+            background-color: #0b7dda;
+        }
+        
     </style>
 </head>
 <body>
@@ -548,6 +580,17 @@
                 <input type="text" class="search-input" id="searchInput" placeholder="Yolculuk ara...">
             </div>
             <ul class="journey-list" id="journeyList"></ul>
+            
+            <!-- Yedekleme/Yükleme butonları -->
+            <div class="backup-buttons">
+                <button class="backup-btn" id="exportBtn">
+                    <i class="fas fa-download"></i> Yedekle
+                </button>
+                <button class="backup-btn import" id="importBtn">
+                    <i class="fas fa-upload"></i> Yükle
+                </button>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
         </div>
     </div>
     
@@ -671,6 +714,9 @@
         const journeyList = document.getElementById('journeyList');
         const utilityBtn = document.getElementById('utilityBtn');
         const settingsModal = document.getElementById('settingsModal');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const importFile = document.getElementById('importFile');
         
         // Filtre kontrolleri
         const medianFilterCheckbox = document.getElementById('medianFilter');
@@ -698,6 +744,7 @@
         let recentSpeeds = [];
         let speedData = [];
         let currentSpeeds = [];
+        let selectedJourneysForExport = new Set();
         
         // Kalman filtreleri
         let kalmanLat = new KalmanFilter(0.0001, 0.01);
@@ -932,7 +979,7 @@
             // 100m başına düşen süreyi hesapla (milisaniye cinsinden)
             const timePer100m = (totalTime / totalDistance) * 100;
             
-            // Dakika ve saniyeye çevir
+            // Dakika and saniyeye çevir
             const totalSeconds = timePer100m / 1000;
             const minutes = Math.floor(totalSeconds / 60);
             const seconds = Math.floor(totalSeconds % 60);
@@ -1018,6 +1065,7 @@
             const request = index.openCursor(null, 'prev');
             
             journeyList.innerHTML = '';
+            selectedJourneysForExport.clear();
             
             request.onsuccess = (event) => {
                 const cursor = event.target.result;
@@ -1065,6 +1113,20 @@
                         
                         statsDiv.innerHTML = statsHTML;
                         
+                        // Seçim kutusu ekle
+                        const selectCheckbox = document.createElement('input');
+                        selectCheckbox.type = 'checkbox';
+                        selectCheckbox.className = 'journey-select';
+                        selectCheckbox.dataset.id = journey.id;
+                        selectCheckbox.addEventListener('change', (e) => {
+                            if (e.target.checked) {
+                                selectedJourneysForExport.add(journey.id);
+                            } else {
+                                selectedJourneysForExport.delete(journey.id);
+                            }
+                        });
+                        
+                        infoDiv.appendChild(selectCheckbox);
                         infoDiv.appendChild(nameInput);
                         infoDiv.appendChild(statsDiv);
                         
@@ -1112,6 +1174,91 @@
             request.onerror = (event) => {
                 console.error('Yükleme hatası:', event.target.error);
             };
+        }
+        
+        // Yolculukları dışa aktar (yedekle)
+        function exportJourneys() {
+            if (selectedJourneysForExport.size === 0) {
+                alert('Lütfen yedeklemek için en az bir yolculuk seçin.');
+                return;
+            }
+            
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const journeysToExport = [];
+            
+            // Seçili yolculukları al
+            const promises = Array.from(selectedJourneysForExport).map(id => {
+                return new Promise((resolve) => {
+                    const request = store.get(id);
+                    request.onsuccess = () => {
+                        journeysToExport.push(request.result);
+                        resolve();
+                    };
+                });
+            });
+            
+            // Tüm yolculuklar alındıktan sonra dışa aktar
+            Promise.all(promises).then(() => {
+                const dataStr = JSON.stringify(journeysToExport, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = 'yolculuklar.json';
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                alert(`${journeysToExport.length} yolculuk başarıyla yedeklendi.`);
+            });
+        }
+        
+        // Yolculukları içe aktar (yükle)
+        function importJourneys(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const journeys = JSON.parse(e.target.result);
+                    
+                    if (!Array.isArray(journeys)) {
+                        throw new Error('Geçersiz dosya formatı');
+                    }
+                    
+                    // Yolculukları veritabanına kaydet
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    
+                    let importedCount = 0;
+                    
+                    journeys.forEach(journey => {
+                        // ID'yi kaldır (yeni ID otomatik atanacak)
+                        delete journey.id;
+                        
+                        const request = store.add(journey);
+                        request.onsuccess = () => {
+                            importedCount++;
+                        };
+                    });
+                    
+                    transaction.oncomplete = () => {
+                        loadJourneys();
+                        alert(`${importedCount} yolculuk başarıyla yüklendi.`);
+                    };
+                    
+                    transaction.onerror = () => {
+                        console.error('İçe aktarma hatası:', transaction.error);
+                        alert('Yolculuklar yüklenirken bir hata oluştu.');
+                    };
+                    
+                } catch (error) {
+                    console.error('Dosya okuma hatası:', error);
+                    alert('Dosya okunurken bir hata oluştu. Lütfen geçerli bir yedek dosyası seçin.');
+                }
+            };
+            
+            reader.readAsText(file);
         }
         
         // Hız grafiği gösteren fonksiyon (bar chart olarak)
@@ -1624,6 +1771,19 @@
         
         utilityBtn.addEventListener('click', () => {
             settingsModal.style.display = 'flex';
+        });
+        
+        // Yedekleme/Yükleme butonları
+        exportBtn.addEventListener('click', exportJourneys);
+        
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+        
+        importFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                importJourneys(e.target.files[0]);
+            }
         });
         
         // Modal dışına tıklanınca kapat
