@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Yolculuk Takip Uygulaması - Gelişmiş Filtreleme</title>
+    <title>Yolculuk Takip Uygulaması - Hız Değişimleri</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -388,6 +389,57 @@
             border-radius: 6px;
             font-size: 16px;
         }
+        
+        /* Hız grafiği için ek stiller */
+        .speed-chart-container {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .speed-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .speed-stat {
+            padding: 5px 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .speed-stat.max {
+            background-color: #ffebee;
+        }
+        
+        .speed-stat.avg {
+            background-color: #e3f2fd;
+        }
+        
+        .chart-canvas {
+            width: 100%;
+            height: 200px;
+        }
+        
+        .speed-chart-btn {
+            margin-top: 8px;
+            padding: 6px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .speed-chart-btn:hover {
+            background-color: #45a049;
+        }
 
         /* Küçük ekranlar için medya sorguları */
         @media (max-height: 700px) {
@@ -491,14 +543,15 @@
             <div class="settings-title">Ayarlar</div>
             
             <div class="settings-section">
-                <div class="settings-section-title">Spor Türü</div>
+                <div class="settings-section-title">Parkur Türü</div>
                 <div class="settings-select">                    
                     <select id="sportType">                        
+                        <option value="pool_swimming">Havuz</option>
+                        <option value="open_water_swimming">Açık Su</option>
+                        <option value="cycling">Bisiklet</option>
                         <option value="running">Koşu</option>
                         <option value="walking">Yürüyüş</option>
-                        <option value="cycling">Bisiklet</option>
-                        <option value="open_water_swimming">Açık suda Yüzme</option>
-                        <option value="pool_swimming">Havuzda Yüzme</option>
+                        <option value="driving">Araba</option>
                     </select>
                 </div>
                 <div class="pool-length-input" id="poolLengthContainer">
@@ -630,6 +683,8 @@
         let selectedJourney = null;
         let recentPositions = [];
         let recentSpeeds = [];
+        let speedData = [];
+        let currentSpeeds = [];
         
         // Kalman filtreleri
         let kalmanLat = new KalmanFilter(0.0001, 0.01);
@@ -649,7 +704,7 @@
         // IndexedDB başlatma
         let db;
         const DB_NAME = 'JourneyTrackerDB';
-        const DB_VERSION = 2; // Versiyonu artırdık çünkü yeni store ekliyoruz
+        const DB_VERSION = 3; // Versiyonu artırdık çünkü yeni store ekliyoruz
         const STORE_NAME = 'journeys';
         const SETTINGS_STORE_NAME = 'settings';
         const SPORT_SETTINGS_STORE_NAME = 'sport_settings';
@@ -858,6 +913,15 @@
             const endTime = new Date();
             const duration = endTime - startTime;
             
+            // Hız istatistiklerini hesapla
+            let maxSpeed = 0;
+            let avgSpeed = 0;
+            
+            if (speedData.length > 0) {
+                maxSpeed = Math.max(...speedData.map(s => s.speed));
+                avgSpeed = speedData.reduce((sum, s) => sum + s.speed, 0) / speedData.length;
+            }
+            
             // Spor türü bilgisini al
             let sportInfo = '';
             if (sportTypeSelect.value === 'pool_swimming') {
@@ -866,10 +930,12 @@
                 sportInfo = `Havuz: ${poolLength}m, Tur: ${laps}`;
             } else {
                 const sportTypes = {
-                    'walking': 'Yürüyüş',
+                    'pool_swimming': 'Havuz',
+                    'open_water_swimming': 'Açık Su',
+                    'cycling': 'Bisiklet',
                     'running': 'Koşu',
-                    'open_water_swimming': 'Açık Su Yüzme',
-                    'pool_swimming': 'Havuz Yüzme'
+                    'walking': 'Yürüyüş',
+                    'driving': 'Araba'                    
                 };
                 sportInfo = sportTypes[sportTypeSelect.value] || 'Yürüyüş';
             }
@@ -881,13 +947,19 @@
                 distance: totalDistance,
                 duration: duration,
                 sportType: sportTypeSelect.value,
-                sportInfo: sportInfo
+                sportInfo: sportInfo,
+                speedData: speedData, // Hız verilerini kaydet
+                maxSpeed: maxSpeed,   // Maksimum hız
+                avgSpeed: avgSpeed    // Ortalama hız
             };
             
             const request = store.add(journey);
             
             request.onsuccess = () => {
                 loadJourneys();
+                // Verileri sıfırla
+                speedData = [];
+                currentSpeeds = [];
             };
             
             request.onerror = (event) => {
@@ -940,10 +1012,26 @@
                             statsHTML += `<br>${journey.sportInfo}`;
                         }
                         
+                        // Hız istatistiklerini ekle
+                        if (journey.maxSpeed !== undefined) {
+                            statsHTML += `<br>Max: ${journey.maxSpeed.toFixed(1)} km/s, Ort: ${journey.avgSpeed.toFixed(1)} km/s`;
+                        }
+                        
                         statsDiv.innerHTML = statsHTML;
                         
                         infoDiv.appendChild(nameInput);
                         infoDiv.appendChild(statsDiv);
+                        
+                        // Hız grafiği butonu ekle
+                        const speedChartBtn = document.createElement('button');
+                        speedChartBtn.className = 'speed-chart-btn';
+                        speedChartBtn.innerHTML = '<i class="fas fa-chart-line"></i> Hız Grafiği';
+                        speedChartBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showSpeedChart(journey);
+                        });
+                        
+                        infoDiv.appendChild(speedChartBtn);
                         
                         const actionsDiv = document.createElement('div');
                         actionsDiv.className = 'journey-actions';
@@ -978,6 +1066,101 @@
             request.onerror = (event) => {
                 console.error('Yükleme hatası:', event.target.error);
             };
+        }
+        
+        // Hız grafiği gösteren fonksiyon
+        function showSpeedChart(journey) {
+            // Modal oluştur veya var olanı kullan
+            let chartModal = document.getElementById('speedChartModal');
+            
+            if (!chartModal) {
+                chartModal = document.createElement('div');
+                chartModal.id = 'speedChartModal';
+                chartModal.className = 'modal';
+                chartModal.innerHTML = `
+                    <div class="modal-content">
+                        <h3>${journey.name} - Hız Grafiği</h3>
+                        <div class="speed-chart-container">
+                            <canvas id="speedChart" class="chart-canvas"></canvas>
+                        </div>
+                        <div class="speed-stats">
+                            <div class="speed-stat max">Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s</div>
+                            <div class="speed-stat avg">Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s</div>
+                        </div>
+                        <button id="closeChartBtn" style="margin-top: 15px; padding: 10px;">Kapat</button>
+                    </div>
+                `;
+                document.body.appendChild(chartModal);
+                
+                // Kapatma butonu işlevi
+                document.getElementById('closeChartBtn').addEventListener('click', () => {
+                    chartModal.style.display = 'none';
+                });
+                
+                // Modal dışına tıklanınca kapat
+                chartModal.addEventListener('click', (e) => {
+                    if (e.target === chartModal) {
+                        chartModal.style.display = 'none';
+                    }
+                });
+            } else {
+                // Modal içeriğini güncelle
+                chartModal.querySelector('h3').textContent = `${journey.name} - Hız Grafiği`;
+                chartModal.querySelector('.speed-stat.max').textContent = `Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s`;
+                chartModal.querySelector('.speed-stat.avg').textContent = `Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s`;
+            }
+            
+            // Grafiği oluştur
+            const ctx = document.getElementById('speedChart').getContext('2d');
+            
+            // Zaman damgalarını formatla
+            const labels = journey.speedData.map(data => {
+                const date = new Date(data.timestamp);
+                return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+            });
+            
+            const speedValues = journey.speedData.map(data => data.speed);
+            
+            // Grafiği oluştur veya güncelle
+            if (window.speedChartInstance) {
+                window.speedChartInstance.destroy();
+            }
+            
+            window.speedChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Hız (km/s)',
+                        data: speedValues,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hız (km/s)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Zaman'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Modalı göster
+            chartModal.style.display = 'flex';
         }
         
         // Yolculuk silme
@@ -1061,6 +1244,8 @@
             positions = [];
             recentPositions = [];
             recentSpeeds = [];
+            speedData = [];
+            currentSpeeds = [];
             
             // Kalman filtrelerini sıfırla
             kalmanLat.reset();
@@ -1076,6 +1261,9 @@
             speedElement.textContent = "0 km/s";
             durationElement.textContent = "00:00:00";
             accuracyElement.textContent = "~ -";
+            
+            // Hız göstergesi rengini sıfırla
+            speedElement.style.color = '#222';
             
             // Süre sayacını başlat
             updateDuration();
@@ -1125,6 +1313,10 @@
             if (positions.length > 0) {
                 saveJourney();
             }
+            
+            // Hız verilerini sıfırla
+            speedData = [];
+            currentSpeeds = [];
         }
         
         // Toggle buton işlevi
@@ -1215,6 +1407,18 @@
                 }
             }
             
+            // Hız verisini kaydet
+            if (filteredCoords.speed !== null) {
+                const speedKmh = filteredCoords.speed * 3.6;
+                speedData.push({
+                    speed: speedKmh,
+                    timestamp: filteredCoords.timestamp
+                });
+                
+                // Mevcut yolculuk için hız verileri
+                currentSpeeds.push(speedKmh);
+            }
+            
             // İlk konumu işle
             if (!lastCoords) {
                 lastCoords = filteredCoords;
@@ -1254,6 +1458,9 @@
             const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
             speedElement.textContent = `${speed.toFixed(1)} km/s`;
             
+            // Hız göstergesini güncelle
+            updateSpeedIndicator();
+            
             // Konumu kaydet
             positions.push({
                 latitude: filteredCoords.latitude,
@@ -1266,6 +1473,22 @@
             
             // Son koordinatları güncelle
             lastCoords = filteredCoords;
+        }
+        
+        // Gerçek zamanlı hız göstergesi için bilgi panelini güncelle
+        function updateSpeedIndicator() {
+            if (currentSpeeds.length > 0) {
+                const currentSpeed = currentSpeeds[currentSpeeds.length - 1];
+                
+                // Renk değişimi (isteğe bağlı)
+                if (currentSpeed > 100) {
+                    speedElement.style.color = '#c62828';
+                } else if (currentSpeed > 50) {
+                    speedElement.style.color = '#ff9800';
+                } else {
+                    speedElement.style.color = '#222';
+                }
+            }
         }
         
         // Konum güncelleme hatası
@@ -1341,6 +1564,12 @@
             }
             if (event.target === settingsModal) {
                 settingsModal.style.display = 'none';
+            }
+            
+            // Hız grafiği modal'ını kapat
+            const chartModal = document.getElementById('speedChartModal');
+            if (chartModal && event.target === chartModal) {
+                chartModal.style.display = 'none';
             }
         });
         
