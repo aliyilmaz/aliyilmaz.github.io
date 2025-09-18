@@ -562,6 +562,34 @@
         .journey-select {
             margin-right: 10px;
         }
+
+        /* Boy ve kilo için ek stiller */
+        .settings-input {
+            margin-bottom: 15px;
+        }
+        
+        .settings-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .settings-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        /* Kalori bilgisi için stil */
+        .calories-info {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #e8f5e9;
+            border-radius: 6px;
+            font-size: 14px;
+        }
         
     </style>
 </head>
@@ -573,6 +601,7 @@
         <div class="info-item" id="speed">0 km/s</div>
         <div class="info-item" id="duration">00:00:00</div>
         <div class="info-item" id="accuracy">~ -</div>
+        <div class="info-item" id="calories" style="display: none;">0 kcal</div>
     </div>
     
     <div class="control-buttons">
@@ -610,6 +639,18 @@
     <div class="settings-modal" id="settingsModal">
         <div class="settings-content">
             <div class="settings-title">Ayarlar</div>
+            
+            <div class="settings-section">
+                <div class="settings-section-title">Kişisel Bilgiler</div>
+                <div class="settings-input">
+                    <label for="userHeight">Boy (cm):</label>
+                    <input type="number" id="userHeight" min="100" max="250" value="170">
+                </div>
+                <div class="settings-input">
+                    <label for="userWeight">Kilo (kg):</label>
+                    <input type="number" id="userWeight" min="30" max="200" value="70">
+                </div>
+            </div>
             
             <div class="settings-section">
                 <div class="settings-section-title">Parkur Türü</div>
@@ -709,6 +750,25 @@
             return windowSize % 2 === 0 ? (window[mid - 1] + window[mid]) / 2 : window[mid];
         }
 
+        // Kalori hesaplama fonksiyonu
+        function calculateCalories(sportType, distance, duration, weight) {
+            // MET (Metabolic Equivalent of Task) değerleri
+            const metValues = {
+                'pool_swimming': 6.0,
+                'open_water_swimming': 7.0,
+                'cycling': 8.0,
+                'running': 9.8,
+                'walking': 4.3,
+                'driving': 1.0
+            };
+            
+            const met = metValues[sportType] || 1.0;
+            
+            // Kalori formülü: MET * ağırlık (kg) * süre (saat)
+            const hours = duration / 3600000; // milisaniyeyi saate çevir
+            return met * weight * hours;
+        }
+
         // Uygulama bileşenleri
         const map = L.map('map').setView([39.9334, 32.8597], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -720,6 +780,7 @@
         const speedElement = document.getElementById('speed');
         const durationElement = document.getElementById('duration');
         const accuracyElement = document.getElementById('accuracy');
+        const caloriesElement = document.getElementById('calories');
         const toggleBtn = document.getElementById('toggleBtn');
         const historyBtn = document.getElementById('historyBtn');
         const historyModal = document.getElementById('historyModal');
@@ -743,6 +804,10 @@
         const poolLengthInput = document.getElementById('poolLength');
         const poolLengthContainer = document.getElementById('poolLengthContainer');
         
+        // Kişisel bilgiler kontrolleri
+        const userHeightInput = document.getElementById('userHeight');
+        const userWeightInput = document.getElementById('userWeight');
+        
         // Değişkenler
         let isTracking = false;
         let watchId = null;
@@ -758,6 +823,7 @@
         let speedData = [];
         let currentSpeeds = [];
         let selectedJourneysForExport = new Set();
+        let totalCalories = 0;
         
         // Kalman filtreleri
         let kalmanLat = new KalmanFilter(0.0001, 0.01);
@@ -777,10 +843,11 @@
         // IndexedDB başlatma
         let db;
         const DB_NAME = 'JourneyTrackerDB';
-        const DB_VERSION = 3;
+        const DB_VERSION = 4; // Versiyonu artırdık çünkü yeni store ekledik
         const STORE_NAME = 'journeys';
         const SETTINGS_STORE_NAME = 'settings';
         const SPORT_SETTINGS_STORE_NAME = 'sport_settings';
+        const USER_SETTINGS_STORE_NAME = 'user_settings';
         
         // İvmeölçer başlatma
         function initAccelerometer() {
@@ -835,6 +902,7 @@
                 loadJourneys();
                 loadFilterSettings();
                 loadSportSettings();
+                loadUserSettings();
             };
             
             request.onupgradeneeded = (event) => {
@@ -855,6 +923,11 @@
                 // Sport settings store
                 if (!db.objectStoreNames.contains(SPORT_SETTINGS_STORE_NAME)) {
                     const sportSettingsStore = db.createObjectStore(SPORT_SETTINGS_STORE_NAME, { keyPath: 'id' });
+                }
+                
+                // User settings store
+                if (!db.objectStoreNames.contains(USER_SETTINGS_STORE_NAME)) {
+                    const userSettingsStore = db.createObjectStore(USER_SETTINGS_STORE_NAME, { keyPath: 'id' });
                 }
             };
         }
@@ -912,6 +985,27 @@
             };
         }
         
+        // Kullanıcı ayarlarını yükle
+        function loadUserSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([USER_SETTINGS_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(USER_SETTINGS_STORE_NAME);
+            const request = store.get('userSettings');
+            
+            request.onsuccess = (event) => {
+                const settings = event.target.result;
+                if (settings) {
+                    userHeightInput.value = settings.height || 170;
+                    userWeightInput.value = settings.weight || 70;
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Kullanıcı ayarları yüklenirken hata oluştu:', event.target.error);
+            };
+        }
+        
         // Filtre ayarlarını kaydet
         function saveFilterSettings() {
             if (!db) return;
@@ -953,6 +1047,22 @@
                 id: 'sportSettings',
                 sportType: sportTypeSelect.value,
                 poolLength: parseInt(poolLengthInput.value) || 25
+            };
+            
+            store.put(settings);
+        }
+        
+        // Kullanıcı ayarlarını kaydet
+        function saveUserSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([USER_SETTINGS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(USER_SETTINGS_STORE_NAME);
+            
+            const settings = {
+                id: 'userSettings',
+                height: parseInt(userHeightInput.value) || 170,
+                weight: parseInt(userWeightInput.value) || 70
             };
             
             store.put(settings);
@@ -1040,6 +1150,14 @@
                 sportInfo = sportTypes[sportTypeSelect.value] || 'Yürüyüş';
             }
             
+            // Kalori hesapla (araba dışındaki türler için)
+            const userWeight = parseInt(userWeightInput.value) || 70;
+            let caloriesBurned = 0;
+            
+            if (sportTypeSelect.value !== 'driving') {
+                caloriesBurned = calculateCalories(sportTypeSelect.value, totalDistance, duration, userWeight);
+            }
+            
             const journey = {
                 date: startTime,
                 name: `Yolculuk ${formatDate(startTime)}`,
@@ -1051,7 +1169,8 @@
                 speedData: speedData, // Hız verilerini kaydet
                 maxSpeed: maxSpeed,   // Maksimum hız
                 avgSpeed: avgSpeed,   // Ortalama hız
-                avg100mTime: avg100mTime // 100m ortalama süresi
+                avg100mTime: avg100mTime, // 100m ortalama süresi
+                calories: caloriesBurned // Yakılan kalori
             };
             
             const request = store.add(journey);
@@ -1137,6 +1256,11 @@
                             statsHTML += `<br>100m Ort: ${journey.avg100mTime}`;
                         }
                         
+                        // Kalori bilgisini ekle (araba dışındaki türler için)
+                        if (journey.sportType !== 'driving' && journey.calories) {
+                            statsHTML += `<br>Kalori: ${journey.calories.toFixed(0)} kcal`;
+                        }
+                        
                         statsDiv.innerHTML = statsHTML;
                         
                         infoDiv.appendChild(selectCheckbox);
@@ -1146,7 +1270,7 @@
                         // Hız grafiği butonu ekle
                         const speedChartBtn = document.createElement('button');
                         speedChartBtn.className = 'speed-chart-btn';
-                        speedChartBtn.innerHTML = '<i class="fas fa-chart-line"></i> Hız Grafiği';
+                        speedChartBtn.innerHTML = '<i class="fas fa-chart-line"></i> i';
                         speedChartBtn.addEventListener('click', (e) => {
                             e.stopPropagation();
                             showSpeedChart(journey);
@@ -1274,7 +1398,7 @@
             reader.readAsText(file);
         }
         
-        // Hız grafiği gösteren fonksiyon (bar chart olarak)
+        // i gösteren fonksiyon (bar chart olarak)
         function showSpeedChart(journey) {
             // Modal oluştur veya var olanı kullan
             let chartModal = document.getElementById('speedChartModal');
@@ -1289,9 +1413,13 @@
                 const avg100mHtml = isSwimming && journey.avg100mTime ? 
                     `<div class="speed-stat avg100m">100m Ortalama: ${journey.avg100mTime}</div>` : '';
                 
+                // Kalori bilgisini ekle (araba dışındaki türler için)
+                const caloriesHtml = journey.sportType !== 'driving' && journey.calories ? 
+                    `<div class="speed-stat calories">Kalori: ${journey.calories.toFixed(0)} kcal</div>` : '';
+                
                 chartModal.innerHTML = `
                     <div class="modal-content">
-                        <h3>${journey.name} - Hız Grafiği</h3>
+                        <h3>${journey.name} - i</h3>
                         <div class="chart-bar-container">
                             <canvas id="speedChart" class="chart-bar-canvas"></canvas>
                         </div>
@@ -1299,6 +1427,7 @@
                             <div class="speed-stat max">Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s</div>
                             <div class="speed-stat avg">Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s</div>
                             ${avg100mHtml}
+                            ${caloriesHtml}
                         </div>
                         <button id="closeChartBtn" style="margin-top: 15px; padding: 10px;">Kapat</button>
                     </div>
@@ -1338,6 +1467,22 @@
                     }
                 } else if (avg100mElement) {
                     avg100mElement.remove();
+                }
+                
+                // Kalori bilgisini güncelle (araba dışındaki türler için)
+                const caloriesElement = chartModal.querySelector('.speed-stat.calories');
+                if (journey.sportType !== 'driving' && journey.calories) {
+                    if (!caloriesElement) {
+                        const speedStats = chartModal.querySelector('.speed-stats');
+                        const newCaloriesElement = document.createElement('div');
+                        newCaloriesElement.className = 'speed-stat calories';
+                        newCaloriesElement.textContent = `Kalori: ${journey.calories.toFixed(0)} kcal`;
+                        speedStats.appendChild(newCaloriesElement);
+                    } else {
+                        caloriesElement.textContent = `Kalori: ${journey.calories.toFixed(0)} kcal`;
+                    }
+                } else if (caloriesElement) {
+                    caloriesElement.remove();
                 }
             }
             
@@ -1482,6 +1627,15 @@
             recentSpeeds = [];
             speedData = [];
             currentSpeeds = [];
+            totalCalories = 0;
+            
+            // Kalori bilgisini göster veya gizle
+            if (sportTypeSelect.value !== 'driving') {
+                caloriesElement.style.display = 'block';
+                caloriesElement.textContent = '0 kcal';
+            } else {
+                caloriesElement.style.display = 'none';
+            }
             
             // Kalman filtrelerini sıfırla
             kalmanLat.reset();
@@ -1694,6 +1848,15 @@
             const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
             speedElement.textContent = `${speed.toFixed(1)} km/s`;
             
+            // Kalori hesapla ve göster (araba dışındaki türler için)
+            if (sportTypeSelect.value !== 'driving') {
+                const userWeight = parseInt(userWeightInput.value) || 70;
+                const now = new Date();
+                const duration = now - startTime;
+                totalCalories = calculateCalories(sportTypeSelect.value, totalDistance, duration, userWeight);
+                caloriesElement.textContent = `${totalCalories.toFixed(0)} kcal`;
+            }
+            
             // Hız göstergesini güncelle
             updateSpeedIndicator();
             
@@ -1755,6 +1918,13 @@
             const now = new Date();
             const diff = now - startTime;
             durationElement.textContent = formatDuration(diff);
+            
+            // Kalori hesapla ve göster (araba dışındaki türler için)
+            if (isTracking && sportTypeSelect.value !== 'driving') {
+                const userWeight = parseInt(userWeightInput.value) || 70;
+                totalCalories = calculateCalories(sportTypeSelect.value, totalDistance, diff, userWeight);
+                caloriesElement.textContent = `${totalCalories.toFixed(0)} kcal`;
+            }
         }
         
         // Yardımcı fonksiyonlar
@@ -1837,9 +2007,22 @@
         sportTypeSelect.addEventListener('change', function() {
             togglePoolLengthInput();
             saveSportSettings();
+            
+            // Kalori bilgisini göster veya gizle
+            if (isTracking) {
+                if (sportTypeSelect.value !== 'driving') {
+                    caloriesElement.style.display = 'block';
+                } else {
+                    caloriesElement.style.display = 'none';
+                }
+            }
         });
         
         poolLengthInput.addEventListener('change', saveSportSettings);
+        
+        // Boy ve kilo değiştiğinde
+        userHeightInput.addEventListener('change', saveUserSettings);
+        userWeightInput.addEventListener('change', saveUserSettings);
         
         // Çift tıklama ve yakınlaştırmayı önleme
         document.addEventListener('dblclick', function(e) {
