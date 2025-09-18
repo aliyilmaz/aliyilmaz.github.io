@@ -178,12 +178,12 @@
         
         .search-input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 8px 12px;
             border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
             touch-action: manipulation;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         .journey-list {
@@ -591,6 +591,38 @@
             font-size: 14px;
         }
         
+        /* Yeni eklenen buton stilleri */
+        .select-all-btn {
+            padding: 6px 12px;
+            background-color: #607D8B;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .select-all-btn:hover {
+            background-color: #546E7A;
+        }
+        
+        .delete-selected-btn {
+            padding: 10px 15px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            margin: 0 5px;
+        }
+        
+        .delete-selected-btn:hover {
+            background-color: #d32f2f;
+        }
+        
     </style>
 </head>
 <body>
@@ -620,16 +652,24 @@
         <div class="modal-content">
             <div class="search-container">
                 <input type="text" class="search-input" id="searchInput" placeholder="Yolculuk ara...">
+                <!-- Tümünü Seç butonu -->
+                <button class="select-all-btn" id="selectAllBtn">
+                    <i class="fas fa-check-square"></i> Tümünü Seç
+                </button>
             </div>
+
             <ul class="journey-list" id="journeyList"></ul>
             
-            <!-- Yedekleme/Yükleme butonları -->
+            <!-- Yedekleme/Yükleme/Sil butonları -->
             <div class="backup-buttons">
                 <button class="backup-btn" id="exportBtn">
                     <i class="fas fa-download"></i> Yedekle
                 </button>
                 <button class="backup-btn import" id="importBtn">
                     <i class="fas fa-upload"></i> Yükle
+                </button>
+                <button class="delete-selected-btn" id="deleteSelectedBtn">
+                    <i class="fas fa-trash"></i> Sil
                 </button>
             </div>
             <input type="file" id="importFile" accept=".json" style="display: none;">
@@ -791,6 +831,8 @@
         const exportBtn = document.getElementById('exportBtn');
         const importBtn = document.getElementById('importBtn');
         const importFile = document.getElementById('importFile');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
         
         // Filtre kontrolleri
         const medianFilterCheckbox = document.getElementById('medianFilter');
@@ -1221,6 +1263,7 @@
                         const selectCheckbox = document.createElement('input');
                         selectCheckbox.type = 'checkbox';
                         selectCheckbox.className = 'journey-select';
+                        selectCheckbox.id = 'journey-select-'+journey.id;
                         selectCheckbox.dataset.id = journey.id;
                         selectCheckbox.addEventListener('change', (e) => {
                             if (e.target.checked) {
@@ -1234,6 +1277,7 @@
                         nameInput.type = 'text';
                         nameInput.className = 'journey-name';
                         nameInput.value = journey.name;
+                        nameInput.id = 'journey-name-'+journey.id;
                         nameInput.addEventListener('change', () => updateJourneyName(journey.id, nameInput.value));
                         
                         const statsDiv = document.createElement('div');
@@ -1270,7 +1314,7 @@
                         // Hız grafiği butonu ekle
                         const speedChartBtn = document.createElement('button');
                         speedChartBtn.className = 'speed-chart-btn';
-                        speedChartBtn.innerHTML = '<i class="fas fa-chart-line"></i> i';
+                        speedChartBtn.innerHTML = '<i class="fas fa-chart-line"></i> istatistik';
                         speedChartBtn.addEventListener('click', (e) => {
                             e.stopPropagation();
                             showSpeedChart(journey);
@@ -1398,6 +1442,70 @@
             reader.readAsText(file);
         }
         
+        // Seçili yolculukları sil
+        function deleteSelectedJourneys() {
+            if (selectedJourneysForExport.size === 0) {
+                alert('Lütfen silmek için en az bir yolculuk seçin.');
+                return;
+            }
+            
+            if (!confirm(`Seçili ${selectedJourneysForExport.size} yolculuğu silmek istediğinize emin misiniz?`)) {
+                return;
+            }
+            
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            let deletedCount = 0;
+            const promises = Array.from(selectedJourneysForExport).map(id => {
+                return new Promise((resolve) => {
+                    const request = store.delete(id);
+                    request.onsuccess = () => {
+                        deletedCount++;
+                        resolve();
+                    };
+                    request.onerror = () => {
+                        console.error('Silme hatası:', request.error);
+                        resolve();
+                    };
+                });
+            });
+            
+            // Tüm silme işlemleri tamamlandıktan sonra
+            Promise.all(promises).then(() => {
+                // Eğer silinen yolculuklardan biri haritada gösteriliyorsa kaldır
+                if (selectedJourney && selectedJourneysForExport.has(selectedJourney.id)) {
+                    map.removeLayer(selectedJourney.polyline);
+                    selectedJourney = null;
+                }
+                
+                loadJourneys();
+                alert(`${deletedCount} yolculuk başarıyla silindi.`);
+            });
+        }
+        
+        // Tüm yolculukları seç
+        function selectAllJourneys() {
+            const checkboxes = document.querySelectorAll('.journey-select');
+            const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+                const journeyId = parseInt(checkbox.dataset.id);
+                
+                if (!allChecked) {
+                    selectedJourneysForExport.add(journeyId);
+                } else {
+                    selectedJourneysForExport.delete(journeyId);
+                }
+            });
+            
+            // Buton metnini güncelle
+            selectAllBtn.innerHTML = allChecked ? 
+                '<i class="fas fa-check-square"></i> Tümünü Seç' : 
+                '<i class="fas fa-times"></i> Tümünü Kaldır';
+        }
+        
         // i gösteren fonksiyon (bar chart olarak)
         function showSpeedChart(journey) {
             // Modal oluştur veya var olanı kullan
@@ -1419,7 +1527,7 @@
                 
                 chartModal.innerHTML = `
                     <div class="modal-content">
-                        <h3>${journey.name} - i</h3>
+                        <h3>${journey.name} - istatistik</h3>
                         <div class="chart-bar-container">
                             <canvas id="speedChart" class="chart-bar-canvas"></canvas>
                         </div>
@@ -1963,7 +2071,7 @@
             settingsModal.style.display = 'flex';
         });
         
-        // Yedekleme/Yükleme butonları
+        // Yedekleme/Yükleme/Sil butonları
         exportBtn.addEventListener('click', exportJourneys);
         
         importBtn.addEventListener('click', () => {
@@ -1975,6 +2083,12 @@
                 importJourneys(e.target.files[0]);
             }
         });
+        
+        // Tümünü seç butonu
+        selectAllBtn.addEventListener('click', selectAllJourneys);
+        
+        // Seçili yolculukları sil butonu
+        deleteSelectedBtn.addEventListener('click', deleteSelectedJourneys);
         
         // Modal dışına tıklanınca kapat
         window.addEventListener('click', (event) => {
