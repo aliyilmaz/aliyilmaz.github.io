@@ -8,511 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: manipulation;
-        }
-        
-        html, body {
-            height: 100%;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-        }
-        
-        body {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            -webkit-text-size-adjust: 100%;
-            text-size-adjust: 100%;
-            padding-top: env(safe-area-inset-top, 0px);
-        }
-        
-        #map {
-            flex: 1;
-            width: 100%;
-            z-index: 1;
-            margin-top: 0;
-        }
-        
-        .info-panel {
-            position: absolute;
-            top: 15px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 12px 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            z-index: 1000;
-            min-width: 160px;
-            text-align: right;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .info-item {
-            margin-bottom: 8px;
-            font-size: 15px;
-            color: #222;
-            -webkit-user-select: none;
-            user-select: none;
-            font-weight: 500;
-        }
-        
-        .info-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .control-buttons {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-        }
-        
-        .toggle-btn {
-            padding: 14px 28px;
-            border: none;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            min-width: 120px;
-            background-color: #2e7d32;
-            color: white;
-        }
-        
-        .toggle-btn.stop {
-            background-color: #c62828;
-        }
-        
-        .toggle-btn:active {
-            transform: scale(0.98);
-        }
-        
-        .toggle-btn.stop:active {
-            background-color: #b71c1c;
-        }
-        
-        .toggle-btn:disabled {
-            background-color: #9e9e9e;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .history-btn {
-            position: absolute;
-            bottom: 90px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .history-btn:active {
-            transform: scale(0.95);
-            background: rgba(240, 240, 240, 0.95);
-        }
-        
-        .history-icon {
-            font-size: 26px;
-            color: #333;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
-            padding: 20px;
-            padding-top: 60px;
-        }
-        
-        .modal-content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 500px;
-            max-height: 70vh;
-            overflow-y: auto;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
-            touch-action: pan-y;
-            position: relative;
-        }
-        
-        .search-container {
-            margin-bottom: 15px;
-            position: relative;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            touch-action: manipulation;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .journey-list {
-            list-style-type: none;
-        }
-        
-        .journey-item {
-            padding: 14px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            transition: background-color 0.2s;
-            position: relative;
-        }
-        
-        .journey-item:hover {
-            background-color: #f5f5f5;
-        }
-        
-        .journey-info {
-            flex: 1;
-            margin-right: 10px;
-        }
-        
-        .journey-name {
-            width: -webkit-fill-available;
-            padding: 6px;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            touch-action: manipulation;
-            font-size: 14px;
-            margin-bottom: 5px;
-            margin-left:30px;
-        }
-        
-        .journey-name:focus {
-            border-color: #2e7d32;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
-        }
-        
-        .journey-stats {
-            font-size: 12px;
-            color: #666;
-            cursor: pointer;
-        }
-        
-        .journey-select{
-            position: absolute;
-            top: 20px;
-            left: 14px;
-            transform: scale(1.2);
-        }
-        
-        .journey-actions {
-            display: flex;
-            align-items: center;
-        }
-        
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #cf3024;
-            cursor: pointer;
-            font-size: 14px;
-            width: 30px;
-            height: 30px;
-            background-color: #f1e8f1;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .delete-btn:hover {
-            color: #d32f2f;
-            background-color: #e8d9e8;
-        }
-        
-        .no-journeys {
-            text-align: center;
-            padding: 30px 20px;
-            color: #757575;
-            font-style: italic;
-        }
-        
-        .utility-btn {
-            position: absolute;
-            bottom: 90px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .utility-btn:active {
-            transform: scale(0.95);
-            background: rgba(240, 240, 240, 0.95);
-        }
-        
-        .utility-icon {
-            font-size: 26px;
-            color: #333;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        
-        .settings-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
-            padding: 20px;
-        }
-        
-        .settings-content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
-            touch-action: pan-y;
-        }
-        
-        .settings-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #2e7d32;
-            text-align: center;
-        }
-        
-        .settings-section {
-            margin-bottom: 20px;
-        }
-        
-        .settings-section-title {
-            font-weight: bold;
-            margin-bottom: 12px;
-            color: #2e7d32;
-            border-bottom: 1px solid #e0e0e0;
-            padding-bottom: 5px;
-        }
-        
-        .settings-checkbox {
-            margin-bottom: 10px;
-        }
-        
-        .settings-checkbox label {
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-        }
-        
-        .settings-checkbox input {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-        }
-        
-        .settings-select {
-            margin-bottom: 15px;
-        }
-        
-        .settings-select label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        
-        .settings-select select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            background-color: white;
-        }
-        
-        .pool-length-input {
-            margin-top: 10px;
-            display: none;
-        }
-        
-        .pool-length-input input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-        
-        /* Hız grafiği için ek stiller */
-        .speed-chart-container {
-            margin-top: 15px;
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-        }
-        
-        .speed-stats {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        
-        .speed-stat {
-            padding: 5px 10px;
-            background-color: #e8f5e9;
-            border-radius: 4px;
-            text-align: center;
-        }
-        
-        .speed-stat.max {
-            background-color: #ffebee;
-        }
-        
-        .speed-stat.avg {
-            background-color: #e3f2fd;
-        }
-        
-        .chart-canvas {
-            width: 100%;
-            height: 200px;
-        }
-        
-        .speed-chart-btn {
-            margin-top: 8px;
-            padding: 6px 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        .speed-chart-btn:hover {
-            background-color: #45a049;
-        }
-
-        /* Küçük ekranlar için medya sorguları */
-        @media (max-height: 700px) {
-            .control-buttons {
-                bottom: 70px;
-            }
-            
-            .history-btn {
-                bottom: 80px;
-            }
-            
-            .utility-btn {
-                bottom: 80px;
-            }
-            
-            .info-panel {
-                top: 15px;
-                padding: 10px 12px;
-            }
-            
-            .info-item {
-                font-size: 14px;
-            }
-            
-            .toggle-btn {
-                padding: 12px 20px;
-                font-size: 15px;
-                min-width: 100px;
-            }
-        }
-
-        @media (max-height: 600px) {
-            .control-buttons {
-                bottom: 60px;
-            }
-            
-            .history-btn {
-                bottom: 70px;
-                width: 50px;
-                height: 50px;
-            }
-            
-            .utility-btn {
-                bottom: 70px;
-                width: 50px;
-                height: 50px;
-            }
-            
-            .history-icon {
-                font-size: 22px;
-            }
-            
-            .utility-icon {
-                font-size: 22px;
-            }
-            
-            .info-panel {
-                top: 15px;
-                min-width: 140px;
-            }
-            
-            .journey-item {
-                padding: 10px;
-            }
-        }
         /* Mevcut CSS kodları aynı kaldı, sadece chart bar için ek stil */
         .chart-bar-container {
             margin-top: 15px;
@@ -558,6 +53,12 @@
             background-color: #0b7dda;
         }
         
+        /* Yolculuk seçim checkbox için stil */
+        .journey-select {
+            margin-right: 10px;
+        }
+        
+        /* Diğer stiller aynı */
     </style>
 </head>
 <body>
@@ -641,7 +142,7 @@
                         <input type="checkbox" id="speedFilter"> Hız Filtresi
                     </label>
                 </div>
-                <div class="settings-checkbox">
+        <div class="settings-checkbox">
                     <label>
                         <input type="checkbox" id="kalmanFilter"> Kalman Filtresi
                     </label>
@@ -766,7 +267,7 @@
         // Filtreleme ayarları
         const MIN_ACCURACY = 50; // Metre cinsinden maksimum kabul edilebilir hata payı
         const MIN_DISTANCE = 5; // Metre cinsinden minimum mesafe eşiği
-        const MAX_SPEED = 200; // Km/s cinsinden maksimum kabul edilebilir hız
+        const MAX_SPEED = 200; // Km/s cinsinden maksimum kabul edilebilir haz
         const MEDIAN_WINDOW = 5; // Medyan filtresi pencere boyutu
         
         // IndexedDB başlatma
@@ -1093,6 +594,19 @@
                         const infoDiv = document.createElement('div');
                         infoDiv.className = 'journey-info';
                         
+                        // Seçim kutusu ekle
+                        const selectCheckbox = document.createElement('input');
+                        selectCheckbox.type = 'checkbox';
+                        selectCheckbox.className = 'journey-select';
+                        selectCheckbox.dataset.id = journey.id;
+                        selectCheckbox.addEventListener('change', (e) => {
+                            if (e.target.checked) {
+                                selectedJourneysForExport.add(journey.id);
+                            } else {
+                                selectedJourneysForExport.delete(journey.id);
+                            }
+                        });
+                        
                         const nameInput = document.createElement('input');
                         nameInput.type = 'text';
                         nameInput.className = 'journey-name';
@@ -1120,19 +634,6 @@
                         }
                         
                         statsDiv.innerHTML = statsHTML;
-                        
-                        // Seçim kutusu ekle
-                        const selectCheckbox = document.createElement('input');
-                        selectCheckbox.type = 'checkbox';
-                        selectCheckbox.className = 'journey-select';
-                        selectCheckbox.dataset.id = journey.id;
-                        selectCheckbox.addEventListener('change', (e) => {
-                            if (e.target.checked) {
-                                selectedJourneysForExport.add(journey.id);
-                            } else {
-                                selectedJourneysForExport.delete(journey.id);
-                            }
-                        });
                         
                         infoDiv.appendChild(selectCheckbox);
                         infoDiv.appendChild(nameInput);
@@ -1278,6 +779,12 @@
                 chartModal = document.createElement('div');
                 chartModal.id = 'speedChartModal';
                 chartModal.className = 'modal';
+                
+                // Yüzme türleri için 100m ortalamasını da ekle
+                const isSwimming = journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming';
+                const avg100mHtml = isSwimming && journey.avg100mTime ? 
+                    `<div class="speed-stat avg100m">100m Ortalama: ${journey.avg100mTime}</div>` : '';
+                
                 chartModal.innerHTML = `
                     <div class="modal-content">
                         <h3>${journey.name} - Hız Grafiği</h3>
@@ -1287,8 +794,7 @@
                         <div class="speed-stats">
                             <div class="speed-stat max">Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s</div>
                             <div class="speed-stat avg">Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s</div>
-                            ${(journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming') && journey.avg100mTime ? 
-                                `<div class="speed-stat avg100m">100m Ortalama: ${journey.avg100mTime}</div>` : ''}
+                            ${avg100mHtml}
                         </div>
                         <button id="closeChartBtn" style="margin-top: 15px; padding: 10px;">Kapat</button>
                     </div>
@@ -1313,8 +819,10 @@
                 chartModal.querySelector('.speed-stat.avg').textContent = `Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s`;
                 
                 // 100m ortalama süresini güncelle (yüzme türleri için)
+                const isSwimming = journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming';
                 const avg100mElement = chartModal.querySelector('.speed-stat.avg100m');
-                if ((journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming') && journey.avg100mTime) {
+                
+                if (isSwimming && journey.avg100mTime) {
                     if (!avg100mElement) {
                         const speedStats = chartModal.querySelector('.speed-stats');
                         const newAvg100mElement = document.createElement('div');
@@ -1832,6 +1340,7 @@
         // Çift tıklama ve yakınlaştırmayı önleme
         document.addEventListener('dblclick', function(e) {
             e.preventDefault();
+            e.stopPropagation();
         }, { passive: false });
 
         // Touch event'lerini yönetme
