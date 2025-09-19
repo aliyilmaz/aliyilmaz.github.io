@@ -622,7 +622,6 @@
         .delete-selected-btn:hover {
             background-color: #d32f2f;
         }
-        
     </style>
 </head>
 <body>
@@ -696,8 +695,8 @@
                 <div class="settings-section-title">Parkur Türü</div>
                 <div class="settings-select">                    
                     <select id="sportType">                        
-                        <option value="pool_swimming">Havuz</option>
                         <option value="open_water_swimming">Açık Su</option>
+                        <option value="pool_swimming">Havuz</option>
                         <option value="cycling">Bisiklet</option>
                         <option value="running">Koşu</option>
                         <option value="walking">Yürüyüş</option>
@@ -945,6 +944,9 @@
                 loadFilterSettings();
                 loadSportSettings();
                 loadUserSettings();
+                
+                // Sayfa yüklendikten sonra JSON dosyasını import et
+                importJsonFile();
             };
             
             request.onupgradeneeded = (event) => {
@@ -972,6 +974,50 @@
                     const userSettingsStore = db.createObjectStore(USER_SETTINGS_STORE_NAME, { keyPath: 'id' });
                 }
             };
+        }
+        
+        // JSON dosyasını import etme fonksiyonu
+        function importJsonFile() {
+            fetch('19EkimAcikSu.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Dosya bulunamadı veya okunamadı');
+                    }
+                    return response.json();
+                })
+                .then(journeys => {
+                    if (!Array.isArray(journeys)) {
+                        throw new Error('Geçersiz dosya formatı');
+                    }
+                    
+                    // Yolculukları veritabanına kaydet
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    
+                    let importedCount = 0;
+                    
+                    journeys.forEach(journey => {
+                        // ID'yi kaldır (yeni ID otomatik atanacak)
+                        delete journey.id;
+                        
+                        const request = store.add(journey);
+                        request.onsuccess = () => {
+                            importedCount++;
+                        };
+                    });
+                    
+                    transaction.oncomplete = () => {
+                        loadJourneys();
+                        console.log(`${importedCount} yolculuk başarıyla yüklendi.`);
+                    };
+                    
+                    transaction.onerror = () => {
+                        console.error('İçe aktarma hatası:', transaction.error);
+                    };
+                })
+                .catch(error => {
+                    console.error('Dosya okuma hatası:', error);
+                });
         }
         
         // Filtre ayarlarını yükle
