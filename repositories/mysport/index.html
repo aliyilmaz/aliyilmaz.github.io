@@ -1788,7 +1788,7 @@
                                 maxRotation: 0
                             },
                             grid: {
-                                color: 'rgba(0, 0, 0, 0.1)' // Grid çizgilerini daha belirgin yap
+                                color: 'rgada(0, 0, 0, 0.1)' // Grid çizgilerini daha belirgin yap
                             }
                         }
                     },
@@ -2186,7 +2186,7 @@
             const a = 
                 Math.sin(dLat/2) * Math.sin(dLat/2) +
                 Math.cos(deg2rad(lastCoords.latitude)) * Math.cos(deg2rad(filteredCoords.latitude)) * 
-                Math.sin(dLon/2) . Math.sin(dLon/2);
+                Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             const distance = R * c;
             
