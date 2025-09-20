@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>mysport</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: manipulation;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        
+        #map {
+            flex: 1;
+            width: 100%;
+            z-index: 1;
+            margin-top: 0;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 15px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 160px;
+            text-align: right;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .info-item {
+            margin-bottom: 8px;
+            font-size: 15px;
+            color: #222;
+            -webkit-user-select: none;
+            user-select: none;
+            font-weight: 500;
+        }
+        
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-buttons {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        
+        .toggle-btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            min-width: 120px;
+            background-color: #2e7d32;
+            color: white;
+        }
+        
+        .toggle-btn.stop {
+            background-color: #c62828;
+        }
+        
+        .toggle-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .toggle-btn.stop:active {
+            background-color: #b71c1c;
+        }
+        
+        .toggle-btn:disabled {
+            background-color: #9e9e9e;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .history-btn {
+            position: absolute;
+            bottom: 90px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .history-btn:active {
+            transform: scale(0.95);
+            background: rgba(240, 240, 240, 0.95);
+        }
+        
+        .history-icon {
+            font-size: 26px;
+            color: #333;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            padding: 20px;
+            padding-top: 60px;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 70vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+            touch-action: pan-y;
+            position: relative;
+        }
+        
+        .search-container {
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            touch-action: manipulation;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .journey-list {
+            list-style-type: none;
+        }
+        
+        .journey-item {
+            padding: 14px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        
+        .journey-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .journey-info {
+            flex: 1;
+            margin-right: 10px;
+        }
+        
+        .journey-name {
+            width: -webkit-fill-available;
+            padding: 6px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            touch-action: manipulation;
+            font-size: 14px;
+            margin-bottom: 5px;
+            margin-left:30px;
+        }
+        
+        .journey-name:focus {
+            border-color: #2e7d32;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+        }
+        
+        .journey-stats {
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .journey-select{
+            position: absolute;
+            top: 20px;
+            left: 14px;
+            transform: scale(1.2);
+        }
+        
+        .journey-actions {
+            display: flex;
+            align-items: center;
+        }
+        
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #cf3024;
+            cursor: pointer;
+            font-size: 14px;
+            width: 30px;
+            height: 30px;
+            background-color: #f1e8f1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .delete-btn:hover {
+            color: #d32f2f;
+            background-color: #e8d9e8;
+        }
+        
+        .no-journeys {
+            text-align: center;
+            padding: 30px 20px;
+            color: #757575;
+            font-style: italic;
+        }
+        
+        .utility-btn {
+            position: absolute;
+            bottom: 90px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .utility-btn:active {
+            transform: scale(0.95);
+            background: rgba(240, 240, 240, 0.95);
+        }
+        
+        .utility-icon {
+            font-size: 26px;
+            color: #333;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            padding: 20px;
+        }
+        
+        .settings-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+            touch-action: pan-y;
+        }
+        
+        .settings-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2e7d32;
+            text-align: center;
+        }
+        
+        .settings-section {
+            margin-bottom: 20px;
+        }
+        
+        .settings-section-title {
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #2e7d32;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        
+        .settings-checkbox {
+            margin-bottom: 10px;
+        }
+        
+        .settings-checkbox label {
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .settings-checkbox input {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .settings-select {
+            margin-bottom: 15px;
+        }
+        
+        .settings-select label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .settings-select select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            background-color: white;
+        }
+        
+        .pool-length-input {
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .pool-length-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        /* Hız grafiği için ek stiller */
+        .speed-chart-container {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .speed-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .speed-stat {
+            padding: 5px 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .speed-stat.max {
+            background-color: #ffebee;
+        }
+        
+        .speed-stat.avg {
+            background-color: #e3f2fd;
+        }
+        
+        .chart-canvas {
+            width: 100%;
+            height: 200px;
+        }
+        
+        .speed-chart-btn {
+            margin-top: 8px;
+            padding: 6px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .speed-chart-btn:hover {
+            background-color: #45a049;
+        }
+
+        /* Küçük ekranlar için medya sorguları */
+        @media (max-height: 700px) {
+            .control-buttons {
+                bottom: 70px;
+            }
+            
+            .history-btn {
+                bottom: 80px;
+            }
+            
+            .utility-btn {
+                bottom: 80px;
+            }
+            
+            .info-panel {
+                top: 15px;
+                padding: 10px 12px;
+            }
+            
+            .info-item {
+                font-size: 14px;
+            }
+            
+            .toggle-btn {
+                padding: 12px 20px;
+                font-size: 15px;
+                min-width: 100px;
+            }
+        }
+
+        @media (max-height: 600px) {
+            .control-buttons {
+                bottom: 60px;
+            }
+            
+            .history-btn {
+                bottom: 70px;
+                width: 50px;
+                height: 50px;
+            }
+            
+            .utility-btn {
+                bottom: 70px;
+                width: 50px;
+                height: 50px;
+            }
+            
+            .history-icon {
+                font-size: 22px;
+            }
+            
+            .utility-icon {
+                font-size: 22px;
+            }
+            
+            .info-panel {
+                top: 15px;
+                min-width: 140px;
+            }
+            
+            .journey-item {
+                padding: 10px;
+            }
+        }
+        /* Mevcut CSS kodları aynı kaldı, sadece chart bar için ek stil */
+        .chart-bar-container {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .chart-bar-canvas {
+            width: 100%;
+            height: 200px;
+        }
+        
+        /* Yedekleme/Yükleme butonları için stil */
+        .backup-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .backup-btn {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            margin: 0 5px;
+        }
+        
+        .backup-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .backup-btn.import {
+            background-color: #2196F3;
+        }
+        
+        .backup-btn.import:hover {
+            background-color: #0b7dda;
+        }
+        
+        /* Yolculuk seçim checkbox için stil */
+        .journey-select {
+            margin-right: 10px;
+        }
+
+        /* Boy ve kilo için ek stiller */
+        .settings-input {
+            margin-bottom: 15px;
+        }
+        
+        .settings-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .settings-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        /* Kalori bilgisi için stil */
+        .calories-info {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: 'e8f5e9';
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        /* Yeni eklenen buton stilleri */
+        .select-all-btn {
+            padding: 6px 12px;
+            background-color: #607D8B;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .select-all-btn:hover {
+            background-color: #546E7A;
+        }
+        
+        .delete-selected-btn {
+            padding: 10px 15px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            margin: 0 5px;
+        }
+        
+        .delete-selected-btn:hover {
+            background-color: #d32f2f;
+        }
+        
+        /* Yolculuk seçimini gösteren stil */
+        .journey-item.selected {
+            background-color: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+        }
+        
+        /* Nokta işaretçileri için stil */
+        .point-marker {
+            background-color: white;
+            border: 2px solid #2e7d32;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .point-marker.small-number {
+            font-size: 9px;
+        }
+        
+        .point-marker.large-number {
+            width: 28px;
+            height: 28px;
+            font-size: 8px;
+        }
+        
+        .start-marker {
+            background-color: #2e7d32;
+            border: 2px solid white;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .end-marker {
+            background-color: #c62828;
+            border: 2px solid white;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="info-panel">
+        <div class="info-item" id="distance">0 m</div>
+        <div class="info-item" id="speed">0 km/s</div>
+        <div class="info-item" id="duration">00:00:00</div>
+        <div class="info-item" id="accuracy">~ -</div>
+        <div class="info-item" id="calories" style="display: none;">0 kcal</div>
+    </div>
+    
+    <div class="control-buttons">
+        <button id="toggleBtn" class="toggle-btn">Başla</button>
+    </div>
+    
+    <div class="history-btn" id="historyBtn">
+        <span class="history-icon"><i class="fas fa-history"></i></span>
+    </div>
+    
+    <div class="utility-btn" id="utilityBtn">
+        <span class="utility-icon"><i class="fas fa-cog"></i></span>
+    </div>
+    
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="search-container">
+                <input type="text" class="search-input" id="searchInput" placeholder="Yolculuk ara...">
+                <!-- Tümünü Seç butonu -->
+                <button class="select-all-btn" id="selectAllBtn">
+                    <i class="fas fa-check-square"></i> Tümünü Seç
+                </button>
+            </div>
+
+            <ul class="journey-list" id="journeyList"></ul>
+            
+            <!-- Yedekleme/Yükleme/Sil butonları -->
+            <div class="backup-buttons">
+                <button class="backup-btn" id="exportBtn">
+                    <i class="fas fa-download"></i> Yedekle
+                </button>
+                <button class="backup-btn import" id="importBtn">
+                    <i class="fas fa-upload"></i> Yükle
+                </button>
+                <button class="delete-selected-btn" id="deleteSelectedBtn">
+                    <i class="fas fa-trash"></i> Sil
+                </button>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+        </div>
+    </div>
+    
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-title">Ayarlar</div>
+            
+            <div class="settings-section">
+                <div class="settings-section-title">Kişisel Bilgiler</div>
+                <div class="settings-input">
+                    <label for="userHeight">Boy (cm):</label>
+                    <input type="number" id="userHeight" min="100" max="250" value="170">
+                </div>
+                <div class="settings-input">
+                    <label for="userWeight">Kilo (kg):</label>
+                    <input type="number" id="userWeight" min="30" max="200" value="70">
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-title">Parkur Türü</div>
+                <div class="settings-select">                    
+                    <select id="sportType">                        
+                        <option value="open_water_swimming">Açık Su</option>
+                        <option value="pool_swimming">Havuz</option>
+                        <option value="cycling">Bisiklet</option>
+                        <option value="running">Koşu</option>
+                        <option value="walking">Yürüyüş</option>
+                        <option value="driving">Araba</option>
+                    </select>
+                </div>
+                <div class="pool-length-input" id="poolLengthContainer">
+                    <label for="poolLength">Havuz Uzunluğu (metre):</label>
+                    <input type="number" id="poolLength" min="10" max="100" value="25">
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-title">Hassasiyet</div>
+                <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="medianFilter"> Medyan Filtresi
+                    </label>
+                </div>
+                <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="accuracyFilter"> Doğruluk Filtresi
+                    </label>
+                </div>
+                <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="speedFilter"> Hız Filtresi
+                    </label>
+                </div>
+        <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="kalmanFilter"> Kalman Filtresi
+                    </label>
+                </div>
+                <div class="settings-checkbox">
+                    <label>
+                        <input type="checkbox" id="accelerometerFilter"> İvmeölçer Filtresi
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Kalman Filtresi sınıfı
+        class KalmanFilter {
+            constructor(R = 1, Q = 1, A = 1, B = 0, C = 1) {
+                this.R = R; // Process noise
+                this.Q = Q; // Measurement noise
+                this.A = A; // State transition matrix
+                this.B = B; // Control input matrix
+                this.C = C; // Measurement matrix
+                
+                this.cov = Number.NaN;
+                this.x = Number.NaN; // Estimated value
+            }
+            
+            filter(z, u = 0) {
+                if (isNaN(this.x)) {
+                    this.x = (1 / this.C) * z;
+                    this.cov = (1 / this.C) * this.Q * (1 / this.C);
+                } else {
+                    // Predict
+                    const predX = (this.A * this.x) + (this.B * u);
+                    const predCov = ((this.A * this.cov) * this.A) + this.R;
+                    
+                    // Update
+                    const K = predCov * this.C * (1 / ((this.C * predCov * this.C) + this.Q));
+                    this.x = predX + K * (z - (this.C * predX));
+                    this.cov = predCov - (K * this.C * predCov);
+                }
+                return this.x;
+            }
+            
+            reset() {
+                this.cov = Number.NaN;
+                this.x = Number.NaN;
+            }
+        }
+
+        // Medyan Filtresi
+        function medianFilter(values, windowSize = 3) {
+            if (values.length < windowSize) return values[values.length - 1];
+            
+            const window = values.slice(-windowSize);
+            window.sort((a, b) => a - b);
+            
+            const mid = Math.floor(windowSize / 2);
+            return windowSize % 2 === 0 ? (window[mid - 1] + window[mid]) / 2 : window[mid];
+        }
+
+        // Kalori hesaplama fonksiyonu
+        function calculateCalories(sportType, distance, duration, weight) {
+            // MET (Metabolic Equivalent of Task) değerleri
+            const metValues = {
+                'pool_swimming': 6.0,
+                'open_water_swimming': 7.0,
+                'cycling': 8.0,
+                'running': 9.8,
+                'walking': 4.3,
+                'driving': 1.0
+            };
+            
+            const met = metValues[sportType] || 1.0;
+            
+            // Kalori formülü: MET * ağırlık (kg) * süre (saat)
+            const hours = duration / 3600000; // milisaniyeyi saate çevir
+            return met * weight * hours;
+        }
+
+        // Uygulama bileşenleri
+        const map = L.map('map').setView([39.9334, 32.8597], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 22
+        }).addTo(map);
+        
+        // DOM elementleri
+        const distanceElement = document.getElementById('distance');
+        const speedElement = document.getElementById('speed');
+        const durationElement = document.getElementById('duration');
+        const accuracyElement = document.getElementById('accuracy');
+        const caloriesElement = document.getElementById('calories');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const historyBtn = document.getElementById('historyBtn');
+        const historyModal = document.getElementById('historyModal');
+        const searchInput = document.getElementById('searchInput');
+        const journeyList = document.getElementById('journeyList');
+        const utilityBtn = document.getElementById('utilityBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const importFile = document.getElementById('importFile');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+        
+        // Filtre kontrolleri
+        const medianFilterCheckbox = document.getElementById('medianFilter');
+        const accuracyFilterCheckbox = document.getElementById('accuracyFilter');
+        const speedFilterCheckbox = document.getElementById('speedFilter');
+        const kalmanFilterCheckbox = document.getElementById('kalmanFilter');
+        const accelerometerFilterCheckbox = document.getElementById('accelerometerFilter');
+        
+        // Spor türü kontrolleri
+        const sportTypeSelect = document.getElementById('sportType');
+        const poolLengthInput = document.getElementById('poolLength');
+        const poolLengthContainer = document.getElementById('poolLengthContainer');
+        
+        // Kişisel bilgiler kontrolleri
+        const userHeightInput = document.getElementById('userHeight');
+        const userWeightInput = document.getElementById('userWeight');
+        
+        // Değişkenler
+        let isTracking = false;
+        let watchId = null;
+        let startTime = null;
+        let timerInterval = null;
+        let totalDistance = 0;
+        let lastCoords = null;
+        let currentPolyline = null;
+        let positions = [];
+        let selectedJourney = null;
+        let recentPositions = [];
+        let recentSpeeds = [];
+        let speedData = [];
+        let currentSpeeds = [];
+        let selectedJourneysForExport = new Set();
+        let totalCalories = 0;
+        let allJourneysSelected = false; // Tüm yolculukların seçili olup olmadığını takip etmek için
+        
+        // Kalman filtreleri
+        let kalmanLat = new KalmanFilter(0.0001, 0.01);
+        let kalmanLng = new KalmanFilter(0.0001, 0.01);
+        
+        // İvmeölçer verileri
+        let accelerometerData = { x: 0, y: 0, z: 0 };
+        let isAccelerometerAvailable = false;
+        let lastAccelerometerUpdate = 0;
+        
+        // Filtreleme ayarları
+        const MIN_ACCURACY = 50; // Metre cinsinden maksimum kabul edilebilir hata payı
+        const MIN_DISTANCE = 5; // Metre cinsinden minimum mesafe eşiği
+        const MAX_SPEED = 200; // Km/s cinsinden maksimum kabul edilebilir haz
+        const MEDIAN_WINDOW = 5; // Medyan filtresi pencere boyutu
+        
+        // IndexedDB başlatma
+        let db;
+        const DB_NAME = 'JourneyTrackerDB';
+        const DB_VERSION = 5; // Versiyonu artırdık çünkü yeni store ekledik
+        const STORE_NAME = 'journeys';
+        const SETTINGS_STORE_NAME = 'settings';
+        const SPORT_SETTINGS_STORE_NAME = 'sport_settings';
+        const USER_SETTINGS_STORE_NAME = 'user_settings';
+        const SELECTED_JOURNEY_STORE_NAME = 'selected_journey';
+        
+        // İvmeölçer başlatma
+        function initAccelerometer() {
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', handleMotionEvent);
+                isAccelerometerAvailable = true;
+                console.log("İvmeölçer başlatıldı");
+            } else {
+                console.log("Cihaz ivmeölçer desteklemiyor");
+            }
+        }
+        
+        function handleMotionEvent(event) {
+            if (event.accelerationIncludingGravity) {
+                accelerometerData = {
+                    x: event.accelerationIncludingGravity.x,
+                    y: event.accelerationIncludingGravity.y,
+                    z: event.accelerationIncludingGravity.z
+                };
+                lastAccelerometerUpdate = Date.now();
+            }
+        }
+        
+        // Hareket durumu tespiti
+        function isDeviceMoving() {
+            // Son ivmeölçer verisinin güncelliğini kontrol et
+            if (Date.now() - lastAccelerometerUpdate > 1000) {
+                return true; // Veri yoksa varsayılan olarak hareket ediyor kabul et
+            }
+            
+            // İvmeölçer verilerine göre hareket durumu
+            const acceleration = Math.sqrt(
+                Math.pow(accelerometerData.x, 2) +
+                Math.pow(accelerometerData.y, 2) +
+                Math.pow(accelerometerData.z, 2)
+            );
+            
+            // Sabit durumda yaklaşık 9.8 m/s² (yerçekimi)
+            // Eşik değerinden büyükse hareket var demektir
+            return Math.abs(acceleration - 9.8) > 0.3;
+        }
+        
+        function initDB() {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            
+            request.onerror = (event) => {
+                console.error('IndexedDB hatası:', event.target.error);
+            };
+            
+            request.onsuccess = (event) => {
+                db = event.target.result;
+                loadJourneys();
+                loadFilterSettings();
+                loadSportSettings();
+                loadUserSettings();
+                loadSelectedJourney();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Journeys store
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    store.createIndex('date', 'date', { unique: false });
+                    store.createIndex('name', 'name', { unique: false });
+                }
+                
+                // Settings store
+                if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
+                    const settingsStore = db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'id' });
+                }
+                
+                // Sport settings store
+                if (!db.objectStoreNames.contains(SPORT_SETTINGS_STORE_NAME)) {
+                    const sportSettingsStore = db.createObjectStore(SPORT_SETTINGS_STORE_NAME, { keyPath: 'id' });
+                }
+                
+                // User settings store
+                if (!db.objectStoreNames.contains(USER_SETTINGS_STORE_NAME)) {
+                    const userSettingsStore = db.createObjectStore(USER_SETTINGS_STORE_NAME, { keyPath: 'id' });
+                }
+                
+                // Selected journey store
+                if (!db.objectStoreNames.contains(SELECTED_JOURNEY_STORE_NAME)) {
+                    const selectedJourneyStore = db.createObjectStore(SELECTED_JOURNEY_STORE_NAME, { keyPath: 'id' });
+                }
+            };
+        }
+        
+        // Seçili yolculuğu kaydet
+        function saveSelectedJourney(journeyId) {
+            if (!db) return;
+            
+            const transaction = db.transaction([SELECTED_JOURNEY_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(SELECTED_JOURNEY_STORE_NAME);
+            
+            const selectedJourneyData = {
+                id: 'selectedJourney',
+                journeyId: journeyId
+            };
+            
+            store.put(selectedJourneyData);
+        }
+        
+        // Seçili yolculuğu yükle
+        function loadSelectedJourney() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SELECTED_JOURNEY_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(SELECTED_JOURNEY_STORE_NAME);
+            const request = store.get('selectedJourney');
+            
+            request.onsuccess = (event) => {
+                const selectedJourneyData = event.target.result;
+                if (selectedJourneyData && selectedJourneyData.journeyId) {
+                    // Seçili yolculuğu yükle
+                    const journeyTransaction = db.transaction([STORE_NAME], 'readonly');
+                    const journeyStore = journeyTransaction.objectStore(STORE_NAME);
+                    const journeyRequest = journeyStore.get(selectedJourneyData.journeyId);
+                    
+                    journeyRequest.onsuccess = (e) => {
+                        const journey = e.target.result;
+                        if (journey) {
+                            toggleJourneyOnMap(journey, true);
+                        }
+                    };
+                }
+            };
+        }
+        
+        // Filtre ayarlarını yükle
+        function loadFilterSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SETTINGS_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(SETTINGS_STORE_NAME);
+            const request = store.get('filterSettings');
+            
+            request.onsuccess = (event) => {
+                const settings = event.target.result;
+                if (settings) {
+                    medianFilterCheckbox.checked = settings.medianFilter || false;
+                    accuracyFilterCheckbox.checked = settings.accuracyFilter || false;
+                    speedFilterCheckbox.checked = settings.speedFilter || false;
+                    kalmanFilterCheckbox.checked = settings.kalmanFilter || false;
+                    accelerometerFilterCheckbox.checked = settings.accelerometerFilter || false;
+                }
+                
+                // İvmeölçer filtresi seçiliyse başlat
+                if (accelerometerFilterCheckbox.checked) {
+                    initAccelerometer();
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Filtre ayarları yüklenirken hata oluştu:', event.target.error);
+            };
+        }
+        
+        // Spor ayarlarını yükle
+        function loadSportSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SPORT_SETTINGS_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(SPORT_SETTINGS_STORE_NAME);
+            const request = store.get('sportSettings');
+            
+            request.onsuccess = (event) => {
+                const settings = event.target.result;
+                if (settings) {
+                    sportTypeSelect.value = settings.sportType || 'walking';
+                    poolLengthInput.value = settings.poolLength || 25;
+                    
+                    // Havuz uzunluğu input'unu göster/gizle
+                    togglePoolLengthInput();
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Spor ayarları yüklenirken hata oluştu:', event.target.error);
+            };
+        }
+        
+        // Kullanıcı ayarlarını yükle
+        function loadUserSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([USER_SETTINGS_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(USER_SETTINGS_STORE_NAME);
+            const request = store.get('userSettings');
+            
+            request.onsuccess = (event) => {
+                const settings = event.target.result;
+                if (settings) {
+                    userHeightInput.value = settings.height || 170;
+                    userWeightInput.value = settings.weight || 70;
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Kullanıcı ayarları yüklenirken hata oluştu:', event.target.error);
+            };
+        }
+        
+        // Filtre ayarlarını kaydet
+        function saveFilterSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SETTINGS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(SETTINGS_STORE_NAME);
+            
+            const settings = {
+                id: 'filterSettings',
+                medianFilter: medianFilterCheckbox.checked,
+                accuracyFilter: accuracyFilterCheckbox.checked,
+                speedFilter: speedFilterCheckbox.checked,
+                kalmanFilter: kalmanFilterCheckbox.checked,
+                accelerometerFilter: accelerometerFilterCheckbox.checked
+            };
+            
+            const request = store.put(settings);
+            
+            request.onsuccess = () => {
+                // İvmeölçer filtresi seçiliyse başlat
+                if (accelerometerFilterCheckbox.checked && !isAccelerometerAvailable) {
+                    initAccelerometer();
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Filtre ayarları kaydedilirken hata oluştu:', event.target.error);
+            };
+        }
+        
+        // Spor ayarlarını kaydet
+        function saveSportSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([SPORT_SETTINGS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(SPORT_SETTINGS_STORE_NAME);
+            
+            const settings = {
+                id: 'sportSettings',
+                sportType: sportTypeSelect.value,
+                poolLength: parseInt(poolLengthInput.value) || 25
+            };
+            
+            store.put(settings);
+        }
+        
+        // Kullanıcı ayarlarını kaydet
+        function saveUserSettings() {
+            if (!db) return;
+            
+            const transaction = db.transaction([USER_SETTINGS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(USER_SETTINGS_STORE_NAME);
+            
+            const settings = {
+                id: 'userSettings',
+                height: parseInt(userHeightInput.value) || 170,
+                weight: parseInt(userWeightInput.value) || 70
+            };
+            
+            store.put(settings);
+        }
+        
+        // Havuz uzunluğu input'unu göster/gizle
+        function togglePoolLengthInput() {
+            if (sportTypeSelect.value === 'pool_swimming') {
+                poolLengthContainer.style.display = 'block';
+            } else {
+                poolLengthContainer.style.display = 'none';
+            }
+        }
+        
+        // Mesafeyi formatla (metre/km)
+        function formatDistance(meters) {
+            if (meters < 1000) {
+                return `${meters.toFixed(0)} m`;
+            } else {
+                return `${(meters / 1000).toFixed(2)} km`;
+            }
+        }
+        
+        // Yolculuk listesında mesafe gösterimi
+        function formatDistanceForList(meters) {
+            if (meters < 1000) {
+                return `${meters.toFixed(0)} m`;
+            } else {
+                return `${(meters / 1000).toFixed(2)} km`;
+            }
+        }
+        
+        // 100m ortalama süresini hesapla (dakika:saniye formatında)
+        function calculate100mAverageTime(totalDistance, totalTime) {
+            if (totalDistance <= 0 || totalTime <= 0) return "0:00";
+            
+            // 100m başına düşen süreyi hesapla (milisaniye cinsinden)
+            const timePer100m = (totalTime / totalDistance) * 100;
+            
+            // Dakika and saniyeye çevir
+            const totalSeconds = timePer100m / 1000;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Yolculuk kaydetme
+        function saveJourney() {
+            if (positions.length === 0) return;
+            
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            const endTime = new Date();
+            const duration = endTime - startTime;
+            
+            // Hız istatistiklerini hesapla
+            let maxSpeed = 0;
+            let avgSpeed = 0;
+            
+            if (speedData.length > 0) {
+                maxSpeed = Math.max(...speedData.map(s => s.speed));
+                avgSpeed = speedData.reduce((sum, s) => sum + s.speed, 0) / speedData.length;
+            }
+            
+            // 100m ortalama süresini hesapla (toplam süre and mesafeden)
+            let avg100mTime = calculate100mAverageTime(totalDistance, duration);
+            
+            // Spor türü bilgisini al
+            let sportInfo = '';
+            if (sportTypeSelect.value === 'pool_swimming') {
+                const poolLength = parseInt(poolLengthInput.value) || 25;
+                const laps = Math.round(totalDistance / poolLength);
+                sportInfo = `Havuz: ${poolLength}m, Tur: ${laps}`;
+            } else {
+                const sportTypes = {
+                    'pool_swimming': 'Havuz',
+                    'open_water_swimming': 'Açık Su',
+                    'cycling': 'Bisiklet',
+                    'running': 'Koşu',
+                    'walking': 'Yürüyüş',
+                    'driving': 'Araba'                    
+                };
+                sportInfo = sportTypes[sportTypeSelect.value] || 'Yürüyüş';
+            }
+            
+            // Kalori hesapla (araba dışındaki türler için)
+            const userWeight = parseInt(userWeightInput.value) || 70;
+            let caloriesBurned = 0;
+            
+            if (sportTypeSelect.value !== 'driving') {
+                caloriesBurned = calculateCalories(sportTypeSelect.value, totalDistance, duration, userWeight);
+            }
+            
+            const journey = {
+                date: startTime,
+                name: `Yolculuk ${formatDate(startTime)}`,
+                positions: positions,
+                distance: totalDistance,
+                duration: duration,
+                sportType: sportTypeSelect.value,
+                sportInfo: sportInfo,
+                speedData: speedData, // Hız verilerini kaydet
+                maxSpeed: maxSpeed,   // Maksimum hız
+                avgSpeed: avgSpeed,   // Ortalama hız
+                avg100mTime: avg100mTime, // 100m ortalama süresi
+                calories: caloriesBurned // Yakılan kalori
+            };
+            
+            const request = store.add(journey);
+            
+            request.onsuccess = () => {
+                loadJourneys();
+                // Verileri sıfırla
+                speedData = [];
+                currentSpeeds = [];
+            };
+            
+            request.onerror = (event) => {
+                console.error('Kayıt hatası:', event.target.error);
+            };
+        }
+        
+        // Yolculukları yükleme
+        function loadJourneys(searchTerm = '') {
+            if (!db) return;
+            
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const index = store.index('date');
+            const request = index.openCursor(null, 'prev');
+            
+            journeyList.innerHTML = '';
+            selectedJourneysForExport.clear();
+            
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const journey = cursor.value;
+                    
+                    // Arama filtresi
+                    if (!searchTerm || 
+                        journey.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        formatDate(journey.date).toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (journey.sportInfo && journey.sportInfo.toLowerCase().includes(searchTerm.toLowerCase()))) {
+                        
+                        const li = document.createElement('li');
+                        li.className = 'journey-item';
+                        li.dataset.id = journey.id;
+                        
+                        // Eğer bu yolculuk seçiliyse, özel stil uygula
+                        if (selectedJourney && selectedJourney.id === journey.id) {
+                            li.classList.add('selected');
+                        }
+                        
+                        const infoDiv = document.createElement('div');
+                        infoDiv.className = 'journey-info';
+                        
+                        // Seçim kutusu ekle
+                        const selectCheckbox = document.createElement('input');
+                        selectCheckbox.type = 'checkbox';
+                        selectCheckbox.className = 'journey-select';
+                        selectCheckbox.id = 'journey-select-'+journey.id;
+                        selectCheckbox.dataset.id = journey.id;
+                        selectCheckbox.checked = allJourneysSelected; // Tümü seçili durumuna göre ayarla
+                        selectCheckbox.addEventListener('change', (e) => {
+                            if (e.target.checked) {
+                                selectedJourneysForExport.add(journey.id);
+                            } else {
+                                selectedJourneysForExport.delete(journey.id);
+                                allJourneysSelected = false;
+                                updateSelectAllButtonText();
+                            }
+                        });
+                        
+                        // Eğer tümü seçiliyse, bu yolculuğu da seçili listeye ekle
+                        if (allJourneysSelected) {
+                            selectedJourneysForExport.add(journey.id);
+                        }
+                        
+                        const nameInput = document.createElement('input');
+                        nameInput.type = 'text';
+                        nameInput.className = 'journey-name';
+                        nameInput.value = journey.name;
+                        nameInput.id = 'journey-name-'+journey.id;
+                        nameInput.addEventListener('change', () => updateJourneyName(journey.id, nameInput.value));
+                        
+                        const statsDiv = document.createElement('div');
+                        statsDiv.className = 'journey-stats';
+                        
+                        let statsHTML = `${formatDate(journey.date)}<br>`;
+                        statsHTML += `${formatDistanceForList(journey.distance)}, ${formatDuration(journey.duration)}`;
+                        
+                        if (journey.sportInfo) {
+                            statsHTML += `<br>${journey.sportInfo}`;
+                        }
+                        
+                        // Hız istatistiklerini ekle
+                        if (journey.maxSpeed !== undefined) {
+                            statsHTML += `<br>Max: ${journey.maxSpeed.toFixed(1)} km/s, Ort: ${journey.avgSpeed.toFixed(1)} km/s`;
+                        }
+                        
+                        // 100m ortalama süresini ekle (yüzme türleri için)
+                        if ((journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming') && journey.avg100mTime) {
+                            statsHTML += `<br>100m Ort: ${journey.avg100mTime}`;
+                        }
+                        
+                        // Kalori bilgisini ekle (araba dışındaki türler için)
+                        if (journey.sportType !== 'driving' && journey.calories) {
+                            statsHTML += `<br>Kalori: ${journey.calories.toFixed(0)} kcal`;
+                        }
+                        
+                        statsDiv.innerHTML = statsHTML;
+                        
+                        infoDiv.appendChild(selectCheckbox);
+                        infoDiv.appendChild(nameInput);
+                        infoDiv.appendChild(statsDiv);
+                        
+                        // Hız grafiği butonu ekle
+                        const speedChartBtn = document.createElement('button');
+                        speedChartBtn.className = 'speed-chart-btn';
+                        speedChartBtn.innerHTML = '<i class="fas fa-chart-line"></i> istatistik';
+                        speedChartBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showSpeedChart(journey);
+                        });
+                        
+                        infoDiv.appendChild(speedChartBtn);
+                        
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'journey-actions';
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete-btn';
+                        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            deleteJourney(journey.id);
+                        });
+                        
+                        actionsDiv.appendChild(deleteBtn);
+                        
+                        li.appendChild(infoDiv);
+                        li.appendChild(actionsDiv);
+                        
+                        // Yolculuk istatistiklerine tıklama ile haritada göster/gizle
+                        statsDiv.addEventListener('click', (e) => {
+                            toggleJourneyOnMap(journey);
+                        });
+                        
+                        journeyList.appendChild(li);
+                    }
+                    
+                    cursor.continue();
+                } else if (journeyList.children.length === 0) {
+                    journeyList.innerHTML = '<div class="no-journeys">Kayıtlı yolculuk bulunamadı</div>';
+                } else {
+                    // Tümünü seç butonunun metnini güncelle
+                    updateSelectAllButtonText();
+                }
+            };
+            
+            request.onerror = (event) => {
+                console.error('Yükleme hatası:', event.target.error);
+            };
+        }
+        
+        // Tümünü seç butonunun metnini güncelle
+        function updateSelectAllButtonText() {
+            if (allJourneysSelected) {
+                selectAllBtn.innerHTML = '<i class="fas fa-times"></i> Tümünü Kaldır';
+            } else {
+                selectAllBtn.innerHTML = '<i class="fas fa-check-square"></i> Tümünü Seç';
+            }
+        }
+        
+        // Yolculukları dışa aktar (yedekle)
+        function exportJourneys() {
+            if (selectedJourneysForExport.size === 0) {
+                alert('Lütfen yedeklemek için en az bir yolculuk seçin.');
+                return;
+            }
+            
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const journeysToExport = [];
+            
+            // Seçili yolculukları al
+            const promises = Array.from(selectedJourneysForExport).map(id => {
+                return new Promise((resolve) => {
+                    const request = store.get(id);
+                    request.onsuccess = () => {
+                        journeysToExport.push(request.result);
+                        resolve();
+                    };
+                });
+            });
+            
+            // Tüm yolculuklar alındıktan sonra dışa aktar
+            Promise.all(promises).then(() => {
+                const dataStr = JSON.stringify(journeysToExport, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = 'yolculuklar.json';
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                alert(`${journeysToExport.length} yolculuk başarıyla yedeklendi.`);
+            });
+        }
+        
+        // Yolculukları içe aktar (yükle)
+        function importJourneys(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const journeys = JSON.parse(e.target.result);
+                    
+                    if (!Array.isArray(journeys)) {
+                        throw new Error('Geçersiz dosya formatı');
+                    }
+                    
+                    // Yolculukları veritabanına kaydet
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    
+                    let importedCount = 0;
+                    
+                    journeys.forEach(journey => {
+                        // ID'yi kaldır (yeni ID otomatik atanacak)
+                        delete journey.id;
+                        
+                        const request = store.add(journey);
+                        request.onsuccess = () => {
+                            importedCount++;
+                        };
+                    });
+                    
+                    transaction.oncomplete = () => {
+                        loadJourneys();
+                        alert(`${importedCount} yolculuk başarıyla yüklendi.`);
+                    };
+                    
+                    transaction.onerror = () => {
+                        console.error('İçe aktarma hatası:', transaction.error);
+                        alert('Yolculuklar yüklenirken bir hata oluştu.');
+                    };
+                    
+                } catch (error) {
+                    console.error('Dosya okuma hatası:', error);
+                    alert('Dosya okunurken bir hata oluştu. Lütfen geçerli bir yedek dosyası seçin.');
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        // Seçili yolculukları sil
+        function deleteSelectedJourneys() {
+            if (selectedJourneysForExport.size === 0) {
+                alert('Lütfen silmek için en az bir yolculuk seçin.');
+                return;
+            }
+            
+            if (!confirm(`Seçili ${selectedJourneysForExport.size} yolculuğu silmek istediğinize emin misiniz?`)) {
+                return;
+            }
+            
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            let deletedCount = 0;
+            const promises = Array.from(selectedJourneysForExport).map(id => {
+                return new Promise((resolve) => {
+                    const request = store.delete(id);
+                    request.onsuccess = () => {
+                        deletedCount++;
+                        resolve();
+                    };
+                    request.onerror = () => {
+                        console.error('Silme hatası:', request.error);
+                        resolve();
+                    };
+                });
+            });
+            
+            // Tüm silme işlemleri tamamlandıktan sonra
+            Promise.all(promises).then(() => {
+                // Eğer silinen yolculuklardan biri haritada gösteriliyorsa kaldır
+                if (selectedJourney && selectedJourneysForExport.has(selectedJourney.id)) {
+                    map.removeLayer(selectedJourney.polyline);
+                    if (selectedJourney.markers) {
+                        selectedJourney.markers.forEach(marker => map.removeLayer(marker));
+                    }
+                    selectedJourney = null;
+                }
+                
+                // Tümünü seç durumunu sıfırla
+                allJourneysSelected = false;
+                updateSelectAllButtonText();
+                
+                loadJourneys();
+                alert(`${deletedCount} yolculuk başarıyla silindi.`);
+            });
+        }
+        
+        // Tüm yolculukları seç
+        function selectAllJourneys() {
+            const checkboxes = document.querySelectorAll('.journey-select');
+            
+            // Tümünü seç durumunu tersine çevir
+            allJourneysSelected = !allJourneysSelected;
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = allJourneysSelected;
+                const journeyId = parseInt(checkbox.dataset.id);
+                
+                if (allJourneysSelected) {
+                    selectedJourneysForExport.add(journeyId);
+                } else {
+                    selectedJourneysForExport.delete(journeyId);
+                }
+            });
+            
+            // Buton metnini güncelle
+            updateSelectAllButtonText();
+        }
+        
+        // Hız grafiğini göster (bar chart olarak)
+        function showSpeedChart(journey) {
+            // Modal oluştur veya var olanı kullan
+            let chartModal = document.getElementById('speedChartModal');
+            
+            if (!chartModal) {
+                chartModal = document.createElement('div');
+                chartModal.id = 'speedChartModal';
+                chartModal.className = 'modal';
+                
+                // Yüzme türleri için 100m ortalamasını da ekle
+                const isSwimming = journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming';
+                const avg100mHtml = isSwimming && journey.avg100mTime ? 
+                    `<div class="speed-stat avg100m">100m Ortalama: ${journey.avg100mTime}</div>` : '';
+                
+                // Kalori bilgisini ekle (araba dışındaki türler için)
+                const caloriesHtml = journey.sportType !== 'driving' && journey.calories ? 
+                    `<div class="speed-stat calories">Kalori: ${journey.calories.toFixed(0)} kcal</div>` : '';
+                
+                chartModal.innerHTML = `
+                    <div class="modal-content">
+                        <h3>${journey.name} - istatistik</h3>
+                        <div class="chart-bar-container">
+                            <canvas id="speedChart" class="chart-bar-canvas"></canvas>
+                        </div>
+                        <div class="speed-stats">
+                            <div class="speed-stat max">Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s</div>
+                            <div class="speed-stat avg">Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s</div>
+                            ${avg100mHtml}
+                            ${caloriesHtml}
+                        </div>
+                        <button id="closeChartBtn" style="margin-top: 15px; padding: 10px;">Kapat</button>
+                    </div>
+                `;
+                document.body.appendChild(chartModal);
+                
+                // Kapatma butonu işlevi
+                document.getElementById('closeChartBtn').addEventListener('click', () => {
+                    chartModal.style.display = 'none';
+                });
+                
+                // Modal dışına tıklanınca kapat
+                chartModal.addEventListener('click', (e) => {
+                    if (e.target === chartModal) {
+                        chartModal.style.display = 'none';
+                    }
+                });
+            } else {
+                // Modal içeriğini güncelle
+                chartModal.querySelector('h3').textContent = `${journey.name} - Hız Grafiği`;
+                chartModal.querySelector('.speed-stat.max').textContent = `Maksimum: ${journey.maxSpeed ? journey.maxSpeed.toFixed(1) : '0'} km/s`;
+                chartModal.querySelector('.speed-stat.avg').textContent = `Ortalama: ${journey.avgSpeed ? journey.avgSpeed.toFixed(1) : '0'} km/s`;
+                
+                // 100m ortalama süresini güncelle (yüzme türleri için)
+                const isSwimming = journey.sportType === 'pool_swimming' || journey.sportType === 'open_water_swimming';
+                const avg100mElement = chartModal.querySelector('.speed-stat.avg100m');
+                
+                if (isSwimming && journey.avg100mTime) {
+                    if (!avg100mElement) {
+                        const speedStats = chartModal.querySelector('.speed-stats');
+                        const newAvg100mElement = document.createElement('div');
+                        newAvg100mElement.className = 'speed-stat avg100m';
+                        newAvg100mElement.textContent = `100m Ortalama: ${journey.avg100mTime}`;
+                        speedStats.appendChild(newAvg100mElement);
+                    } else {
+                        avg100mElement.textContent = `100m Ortalama: ${journey.avg100mTime}`;
+                    }
+                } else if (avg100mElement) {
+                    avg100mElement.remove();
+                }
+                
+                // Kalori bilgisini güncelle (araba dışındaki türler için)
+                const caloriesElement = chartModal.querySelector('.speed-stat.calories');
+                if (journey.sportType !== 'driving' && journey.calories) {
+                    if (!caloriesElement) {
+                        const speedStats = chartModal.querySelector('.speed-stats');
+                        const newCaloriesElement = document.createElement('div');
+                        newCaloriesElement.className = 'speed-stat calories';
+                        newCaloriesElement.textContent = `Kalori: ${journey.calories.toFixed(0)} kcal`;
+                        speedStats.appendChild(newCaloriesElement);
+                    } else {
+                        caloriesElement.textContent = `Kalori: ${journey.calories.toFixed(0)} kcal`;
+                    }
+                } else if (caloriesElement) {
+                    caloriesElement.remove();
+                }
+            }
+            
+            // Grafiği oluştur
+            const ctx = document.getElementById('speedChart').getContext('2d');
+            
+            // Zaman damgalarını formatla
+            const labels = journey.speedData.map(data => {
+                const date = new Date(data.timestamp);
+                return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+            });
+            
+            const speedValues = journey.speedData.map(data => data.speed);
+            
+            // Grafiği oluştur veya güncelle
+            if (window.speedChartInstance) {
+                window.speedChartInstance.destroy();
+            }
+            
+            window.speedChartInstance = new Chart(ctx, {
+                type: 'bar', // Bar chart olarak değiştirildi
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Hız (km/s)',
+                        data: speedValues,
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)', // Daha opak yapıldı
+                        borderColor: 'rgb(75, 192, 192)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hız (km/s)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)' // Grid çizgilerini daha belirgin yap
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Zaman'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10, // X ekseninde maksimum 10 işaret göster
+                                autoSkip: true,
+                                maxRotation: 0
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)' // Grid çizgilerini daha belirgin yap
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                font: {
+                                    size: 14 // Yazı boyutunu artır
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Modalı göster
+            chartModal.style.display = 'flex';
+        }
+        
+        // Yolculuk silme
+        function deleteJourney(id) {
+            if (!confirm('Bu yolculuğu silmek istediğinize emin misiniz?')) {
+                return;
+            }
+            
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(id);
+            
+            request.onsuccess = () => {
+                // Eğer silinen yolculuk haritada gösteriliyorsa kaldır
+                if (selectedJourney && selectedJourney.id === id) {
+                    map.removeLayer(selectedJourney.polyline);
+                    if (selectedJourney.markers) {
+                        selectedJourney.markers.forEach(marker => map.removeLayer(marker));
+                    }
+                    selectedJourney = null;
+                }
+                loadJourneys();
+            };
+            
+            request.onerror = (event) => {
+                console.error('Silme hatası:', event.target.error);
+                alert('Yolculuk silinirken bir hata oluştu.');
+            };
+        }
+        
+        // Yolculuk ismini güncelleme
+        function updateJourneyName(id, newName) {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(id);
+            
+            request.onsuccess = () => {
+                const journey = request.result;
+                journey.name = newName;
+                store.put(journey);
+            };
+        }
+        
+        // Yolculuğu haritada göster/gizle
+        function toggleJourneyOnMap(journey, fromLoad = false) {
+            // Eğer aynı yolculuk tekrar tıklandıysa kaldır
+            if (selectedJourney && selectedJourney.id === journey.id) {
+                map.removeLayer(selectedJourney.polyline);
+                if (selectedJourney.markers) {
+                    selectedJourney.markers.forEach(marker => map.removeLayer(marker));
+                }
+                selectedJourney = null;
+                
+                // Seçimi veritabanından kaldır
+                saveSelectedJourney(null);
+                
+                // Listede seçim stilini kaldır
+                const journeyItems = document.querySelectorAll('.journey-item');
+                journeyItems.forEach(item => {
+                    if (parseInt(item.dataset.id) === journey.id) {
+                        item.classList.remove('selected');
+                    }
+                });
+                
+                return;
+            }
+            
+            // Önceki yolculuğu temizle
+            if (selectedJourney) {
+                map.removeLayer(selectedJourney.polyline);
+                if (selectedJourney.markers) {
+                    selectedJourney.markers.forEach(marker => map.removeLayer(marker));
+                }
+            }
+            
+            // Yeni yolculuğu çiz
+            const latlngs = journey.positions.map(pos => [pos.latitude, pos.longitude]);
+            const polyline = L.polyline(latlngs, {color: 'blue'}).addTo(map);
+            
+            // Nokta işaretleyicileri ekle
+            const markers = [];
+            
+            // Başlangıç işaretleyicisi
+            if (latlngs.length > 0) {
+                const startMarker = L.marker(latlngs[0], {
+                    icon: L.divIcon({
+                        className: 'start-marker',
+                        html: '<i class="fas fa-play"></i>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    })
+                }).addTo(map);
+                markers.push(startMarker);
+            }
+            
+            // Bitiş işaretleyicisi
+            if (latlngs.length > 1) {
+                const endMarker = L.marker(latlngs[latlngs.length - 1], {
+                    icon: L.divIcon({
+                        className: 'end-marker',
+                        html: '<i class="fas fa-flag-checkered"></i>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    })
+                }).addTo(map);
+                markers.push(endMarker);
+            }
+            
+            // Ara nokta işaretleyicileri (her 5 noktada bir)
+            for (let i = 1; i < latlngs.length - 1; i += 5) {
+                const pointNumber = Math.floor(i/5) + 1;
+                let markerClass = 'point-marker';
+                
+                // Sayı basamak sayısına göre farklı stiller uygula
+                if (pointNumber > 99) {
+                    markerClass += ' large-number';
+                } else if (pointNumber > 9) {
+                    markerClass += ' small-number';
+                }
+                
+                const pointMarker = L.marker(latlngs[i], {
+                    icon: L.divIcon({
+                        className: markerClass,
+                        html: `<span>${pointNumber}</span>`,
+                        iconSize: pointNumber > 99 ? [28, 28] : [24, 24],
+                        iconAnchor: pointNumber > 99 ? [14, 14] : [12, 12]
+                    })
+                }).addTo(map);
+                markers.push(pointMarker);
+            }
+            
+            // Haritayı rotaya odakla
+            map.fitBounds(polyline.getBounds());
+            
+            // Seçili yolculuğu sakla
+            selectedJourney = {
+                id: journey.id,
+                polyline: polyline,
+                markers: markers
+            };
+            
+            // Seçimi veritabanına kaydet
+            saveSelectedJourney(journey.id);
+            
+            // Listede seçim stilini uygula
+            const journeyItems = document.querySelectorAll('.journey-item');
+            journeyItems.forEach(item => {
+                if (parseInt(item.dataset.id) === journey.id) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+            
+            // Eğer modal açıksa and fromLoad false ise, modalı kapat
+            if (!fromLoad && historyModal.style.display === 'flex') {
+                historyModal.style.display = 'none';
+            }
+        }
+        
+        // Takip işlemini başlat
+        function startTracking() {
+            if (isTracking) return;
+            
+            isTracking = true;
+            toggleBtn.textContent = "Bitir";
+            toggleBtn.classList.add("stop");
+            
+            // Değişkenleri sıfırla
+            totalDistance = 0;
+            startTime = new Date();
+            lastCoords = null;
+            positions = [];
+            recentPositions = [];
+            recentSpeeds = [];
+            speedData = [];
+            currentSpeeds = [];
+            totalCalories = 0;
+            
+            // Kalori bilgisini göster veya gizle
+            if (sportTypeSelect.value !== 'driving') {
+                caloriesElement.style.display = 'block';
+                caloriesElement.textContent = '0 kcal';
+            } else {
+                caloriesElement.style.display = 'none';
+            }
+            
+            // Kalman filtrelerini sıfırla
+            kalmanLat.reset();
+            kalmanLng.reset();
+            
+            // İvmeölçer başlat (eğer filtresi etkinse)
+            if (accelerometerFilterCheckbox.checked && !isAccelerometerAvailable) {
+                initAccelerometer();
+            }
+            
+            // Bilgileri sıfırla
+            distanceElement.textContent = "0 m";
+            speedElement.textContent = "0 km/s";
+            durationElement.textContent = "00:00:00";
+            accuracyElement.textContent = "~ -";
+            
+            // Hız göstergesi rengini sıfırla
+            speedElement.style.color = '#222';
+            
+            // Süre sayacını başlat
+            updateDuration();
+            timerInterval = setInterval(updateDuration, 1000);
+            
+            // Konum takibini başlat
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(
+                    positionSuccess,
+                    positionError,
+                    { 
+                        enableHighAccuracy: true, 
+                        maximumAge: 10000, 
+                        timeout: 5000 
+                    }
+                );
+            } else {
+                alert("Tarayıcınız coğrafi konumu desteklemiyor.");
+                stopTracking();
+            }
+        }
+        
+        // Takip işlemini durdur
+        function stopTracking() {
+            if (!isTracking) return;
+            
+            isTracking = false;
+            toggleBtn.textContent = "Başla";
+            toggleBtn.classList.remove("stop");
+            
+            // Süre sayacını durdur
+            clearInterval(timerInterval);
+            
+            // Konum takibini durdur
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            
+            // Çizgileri temizle
+            if (currentPolyline) {
+                map.removeLayer(currentPolyline);
+                currentPolyline = null;
+            }
+            
+            // Veritabanına kaydet
+            if (positions.length > 0) {
+                saveJourney();
+            }
+            
+            // Hız verilerini sıfırla
+            speedData = [];
+            currentSpeeds = [];
+        }
+        
+        // Toggle buton işlevi
+        function toggleTracking() {
+            if (isTracking) {
+                stopTracking();
+            } else {
+                startTracking();
+            }
+        }
+        
+        // Konum güncelleme başarılı
+        function positionSuccess(position) {
+            const coords = position.coords;
+            
+            // Doğruluk bilgisini göster
+            accuracyElement.textContent = `~ ${coords.accuracy.toFixed(1)}m`;
+            
+            // Doğruluk filtresi (eğer etkinse)
+            if (accuracyFilterCheckbox.checked && coords.accuracy > MIN_ACCURACY) {
+                console.log("Düşük doğruluk değeri nedeniyle konum filtrelendi:", coords.accuracy);
+                return;
+            }
+            
+            // Hız filtresi (eğer etkinse)
+            const speedKmh = coords.speed !== null ? coords.speed * 3.6 : 0;
+            if (speedFilterCheckbox.checked && speedKmh > MAX_SPEED) {
+                console.log("Yüksek hız nedeniyle konum filtrelendi:", speedKmh);
+                return;
+            }
+            
+            let filteredCoords = {
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                accuracy: coords.accuracy,
+                speed: coords.speed,
+                timestamp: position.timestamp
+            };
+            
+            // İvmeölçer filtresi (eğer etkinse)
+            if (accelerometerFilterCheckbox.checked && isAccelerometerAvailable) {
+                const isMoving = isDeviceMoving();
+                
+                if (!isMoving && lastCoords) {
+                    // Cihaz hareket etmiyorsa, konum değişimlerini şüpheyle karşıla
+                    const R = 6371;
+                    const dLat = deg2rad(coords.latitude - lastCoords.latitude);
+                    const dLon = deg2rad(coords.longitude - lastCoords.longitude);
+                    const a = 
+                        Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(deg2rad(lastCoords.latitude)) * Math.cos(deg2rad(coords.latitude)) * 
+                        Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    const distance = R * c * 1000; // metre cinsinden
+                    
+                    if (distance > 10) { // 10 metreden fazla sapma
+                        console.log("Cihaz hareket etmiyor ama konum değişti, filtrele:", distance);
+                        return; // Bu konumu atla
+                    }
+                }
+            }
+            
+            // Kalman filtresi (eğer etkinse)
+            if (kalmanFilterCheckbox.checked) {
+                filteredCoords.latitude = kalmanLat.filter(coords.latitude);
+                filteredCoords.longitude = kalmanLng.filter(coords.longitude);
+            }
+            
+            // Medyan filtresi (eğer etkinse)
+            if (medianFilterCheckbox.checked) {
+                recentPositions.push({
+                    lat: filteredCoords.latitude,
+                    lng: filteredCoords.longitude
+                });
+                
+                // Penceredeki konum sayısını sınırla
+                if (recentPositions.length > MEDIAN_WINDOW) {
+                    recentPositions.shift();
+                }
+                
+                // Yeterli veri varsa medyan filtre uygula
+                if (recentPositions.length >= 3) {
+                    const lats = recentPositions.map(p => p.lat);
+                    const lngs = recentPositions.map(p => p.lng);
+                    
+                    filteredCoords.latitude = medianFilter(lats);
+                    filteredCoords.longitude = medianFilter(lngs);
+                }
+            }
+            
+            // Hız verisini kaydet
+            if (filteredCoords.speed !== null) {
+                const speedKmh = filteredCoords.speed * 3.6;
+                speedData.push({
+                    speed: speedKmh,
+                    timestamp: filteredCoords.timestamp
+                });
+                
+                // Mevcut yolculuk için hız verileri
+                currentSpeeds.push(speedKmh);
+            }
+            
+            // İlk konumu işle
+            if (!lastCoords) {
+                lastCoords = filteredCoords;
+                positions.push({
+                    latitude: filteredCoords.latitude,
+                    longitude: filteredCoords.longitude,
+                    timestamp: filteredCoords.timestamp
+                });
+                
+                // Haritayı mevcut konuma odakla
+                map.setView([filteredCoords.latitude, filteredCoords.longitude], 16);
+                return;
+            }
+            
+            // Mesafe hesapla (Haversine formülü)
+            const R = 6371;
+            const dLat = deg2rad(filteredCoords.latitude - lastCoords.latitude);
+            const dLon = deg2rad(filteredCoords.longitude - lastCoords.longitude);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lastCoords.latitude)) * Math.cos(deg2rad(filteredCoords.latitude)) * 
+                Math.sin(dLon/2) . Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c;
+            
+            // Minimum mesafe eşiği (eğer etkinse)
+            if (distance * 1000 < MIN_DISTANCE) {
+                console.log("Minimum mesafe eşiğinin altında kalan konum filtrelendi:", distance * 1000);
+                return;
+            }
+            
+            // Toplam mesafeyi güncelle (metre cinsinden)
+            totalDistance += distance * 1000;
+            distanceElement.textContent = formatDistance(totalDistance);
+            
+            // Hızı güncelle
+            const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
+            speedElement.textContent = `${speed.toFixed(1)} km/s`;
+            
+            // Kalori hesapla ve göster (araba dışındaki türler için)
+            if (sportTypeSelect.value !== 'driving') {
+                const userWeight = parseInt(userWeightInput.value) || 70;
+                const now = new Date();
+                const duration = now - startTime;
+                totalCalories = calculateCalories(sportTypeSelect.value, totalDistance, duration, userWeight);
+                caloriesElement.textContent = `${totalCalories.toFixed(0)} kcal`;
+            }
+            
+            // Hız göstergesini güncelle
+            updateSpeedIndicator();
+            
+            // Konumu kaydet
+            positions.push({
+                latitude: filteredCoords.latitude,
+                longitude: filteredCoords.longitude,
+                timestamp: filteredCoords.timestamp
+            });
+            
+            // Rotayı çiz
+            drawRoute();
+            
+            // Son koordinatları güncelle
+            lastCoords = filteredCoords;
+        }
+        
+        // Gerçek zamanlı hız göstergesi için bilgi panelini güncelle
+        function updateSpeedIndicator() {
+            if (currentSpeeds.length > 0) {
+                const currentSpeed = currentSpeeds[currentSpeeds.length - 1];
+                
+                // Renk değişimi (isteğe bağlı)
+                if (currentSpeed > 100) {
+                    speedElement.style.color = '#c62828';
+                } else if (currentSpeed > 50) {
+                    speedElement.style.color = '#ff9800';
+                } else {
+                    speedElement.style.color = '#222';
+                }
+            }
+        }
+        
+        // Konum güncelleme hatası
+        function positionError(error) {
+            console.error('Konum hatası:', error);
+            alert(`Konum alınamadı: ${error.message}`);
+            stopTracking();
+        }
+        
+        // Rota çiz
+        function drawRoute() {
+            if (positions.length < 2) return;
+            
+            // Önceki çizgiyi temizle
+            if (currentPolyline) {
+                map.removeLayer(currentPolyline);
+            }
+            
+            // Yeni çizgiyi oluştur
+            const latlngs = positions.map(pos => [pos.latitude, pos.longitude]);
+            currentPolyline = L.polyline(latlngs, {color: 'red'}).addTo(map);
+        }
+        
+        // Süreyi güncelle
+        function updateDuration() {
+            if (!startTime) return;
+            
+            const now = new Date();
+            const diff = now - startTime;
+            durationElement.textContent = formatDuration(diff);
+            
+            // Kalori hesapla ve göster (araba dışındaki türler için)
+            if (isTracking && sportTypeSelect.value !== 'driving') {
+                const userWeight = parseInt(userWeightInput.value) || 70;
+                totalCalories = calculateCalories(sportTypeSelect.value, totalDistance, diff, userWeight);
+                caloriesElement.textContent = `${totalCalories.toFixed(0)} kcal`;
+            }
+        }
+        
+        // Yardımcı fonksiyonlar
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+        
+        function formatDuration(milliseconds) {
+            const seconds = Math.floor(milliseconds / 1000);
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('tr-TR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Olay dinleyicileri
+        toggleBtn.addEventListener('click', toggleTracking);
+        
+        historyBtn.addEventListener('click', () => {
+            historyModal.style.display = 'flex';
+            loadJourneys();
+        });
+        
+        utilityBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'flex';
+        });
+        
+        // Yedekleme/Yükleme/Sil butonları
+        exportBtn.addEventListener('click', exportJourneys);
+        
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+        
+        importFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                importJourneys(e.target.files[0]);
+            }
+        });
+        
+        // Tümünü seç butonu
+        selectAllBtn.addEventListener('click', selectAllJourneys);
+        
+        // Seçili yolculukları sil butonu
+        deleteSelectedBtn.addEventListener('click', deleteSelectedJourneys);
+        
+        // Modal dışına tıklanınca kapat
+        window.addEventListener('click', (event) => {
+            if (event.target === historyModal) {
+                historyModal.style.display = 'none';
+                // Modal kapatıldığında tümünü seç durumunu sıfırla
+                allJourneysSelected = false;
+                updateSelectAllButtonText();
+            }
+            if (event.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+            
+            // Hız grafiği modal'ını kapat
+            const chartModal = document.getElementById('speedChartModal');
+            if (chartModal && event.target === chartModal) {
+                chartModal.style.display = 'none';
+            }
+        });
+        
+        searchInput.addEventListener('input', () => {
+            loadJourneys(searchInput.value);
+        });
+        
+        // Filtre ayarları değiştiğinde kaydet
+        medianFilterCheckbox.addEventListener('change', saveFilterSettings);
+        accuracyFilterCheckbox.addEventListener('change', saveFilterSettings);
+        speedFilterCheckbox.addEventListener('change', saveFilterSettings);
+        kalmanFilterCheckbox.addEventListener('change', saveFilterSettings);
+        accelerometerFilterCheckbox.addEventListener('change', saveFilterSettings);
+        
+        // Spor türü değiştiğinde
+        sportTypeSelect.addEventListener('change', function() {
+            togglePoolLengthInput();
+            saveSportSettings();
+            
+            // Kalori bilgisini göster veya gizle
+            if (isTracking) {
+                if (sportTypeSelect.value !== 'driving') {
+                    caloriesElement.style.display = 'block';
+                } else {
+                    caloriesElement.style.display = 'none';
+                }
+            }
+        });
+        
+        poolLengthInput.addEventListener('change', saveSportSettings);
+        
+        // Boy ve kilo değiştiğinde
+        userHeightInput.addEventListener('change', saveUserSettings);
+        userWeightInput.addEventListener('change', saveUserSettings);
+        
+        // Çift tıklama ve yakınlaştırmayı önleme
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
+
+        // Touch event'lerini yönetme
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
+        });
+        
+        // Uygulamayı başlat
+        initDB();
+    </script>
+</body>
+</html>
