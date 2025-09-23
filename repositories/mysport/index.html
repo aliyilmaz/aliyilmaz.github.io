@@ -815,6 +815,12 @@
                 this.x = Number.NaN; // Estimated value
             }
             
+            // Yeni eklenen setParams metodu
+            setParams(R, Q) {
+                this.R = R;
+                this.Q = Q;
+            }
+            
             filter(z, u = 0) {
                 if (isNaN(this.x)) {
                     this.x = (1 / this.C) * z;
@@ -976,9 +982,10 @@
         }
         
         // Hareket durumu tespiti
+        // Yardımcı fonksiyon: Cihazın hareket durumunu tespit et
         function isDeviceMoving() {
             // Son ivmeölçer verisinin güncelliğini kontrol et
-            if (Date.now() - lastAccelerometerUpdate > 1000) {
+            if (Date.now() - lastAccelerometerUpdate > 2000) {
                 return true; // Veri yoksa varsayılan olarak hareket ediyor kabul et
             }
             
@@ -991,7 +998,7 @@
             
             // Sabit durumda yaklaşık 9.8 m/s² (yerçekimi)
             // Eşik değerinden büyükse hareket var demektir
-            return Math.abs(acceleration - 9.8) > 0.3;
+            return Math.abs(acceleration - 9.8) > 0.5;
         }
         
         function initDB() {
@@ -2078,133 +2085,145 @@
         function positionSuccess(position) {
             const coords = position.coords;
             
-            // Doğruluk bilgisini göster
+            // Doğruluk bilgisini güncelle
             accuracyElement.textContent = `~ ${coords.accuracy.toFixed(1)}m`;
             
-            // Doğruluk filtresi (eğer etkinse)
-            if (accuracyFilterCheckbox.checked && coords.accuracy > MIN_ACCURACY) {
-                console.log("Düşük doğruluk değeri nedeniyle konum filtrelendi:", coords.accuracy);
+            // Dinamik doğruluk eşiği (doğruluk arttıkça eşik de düşer)
+            const dynamicAccuracyThreshold = Math.max(15, Math.min(50, coords.accuracy * 1.5));
+            
+            // Doğruluk filtresi
+            if (accuracyFilterCheckbox.checked && coords.accuracy > dynamicAccuracyThreshold) {
+                console.log("Düşük doğruluk nedeniyle atlandı:", coords.accuracy);
                 return;
             }
             
-            // Hız filtresi (eğer etkinse)
-            const speedKmh = coords.speed !== null ? coords.speed * 3.6 : 0;
-            if (speedFilterCheckbox.checked && speedKmh > MAX_SPEED) {
-                console.log("Yüksek hız nedeniyle konum filtrelendi:", speedKmh);
+            // Hız verilerini al
+            const measuredSpeedMs = coords.speed !== null ? coords.speed : 0;
+            const measuredSpeedKmh = measuredSpeedMs * 3.6;
+            
+            // Hız filtresi
+            if (speedFilterCheckbox.checked && measuredSpeedKmh > MAX_SPEED) {
+                console.log("Aşırı hız nedeniyle atlandı:", measuredSpeedKmh);
                 return;
             }
             
-            let filteredCoords = {
-                latitude: coords.latitude,
-                longitude: coords.longitude,
-                accuracy: coords.accuracy,
-                speed: coords.speed,
-                timestamp: position.timestamp
-            };
-            
-            // İvmeölçer filtresi (eğer etkinse)
+            // İvmeölçer filtresi
             if (accelerometerFilterCheckbox.checked && isAccelerometerAvailable) {
                 const isMoving = isDeviceMoving();
-                
                 if (!isMoving && lastCoords) {
-                    // Cihaz hareket etmiyorsa, konum değişimlerini şüpheyle karşıla
-                    const R = 6371;
-                    const dLat = deg2rad(coords.latitude - lastCoords.latitude);
-                    const dLon = deg2rad(coords.longitude - lastCoords.longitude);
-                    const a = 
-                        Math.sin(dLat/2) * Math.sin(dLat/2) +
-                        Math.cos(deg2rad(lastCoords.latitude)) * Math.cos(deg2rad(coords.latitude)) * 
-                        Math.sin(dLon/2) * Math.sin(dLon/2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                    const distance = R * c * 1000; // metre cinsinden
-                    
-                    if (distance > 10) { // 10 metreden fazla sapma
-                        console.log("Cihaz hareket etmiyor ama konum değişti, filtrele:", distance);
-                        return; // Bu konumu atla
+                    const dist = haversineDistance(coords.latitude, coords.longitude, 
+                                                lastCoords.latitude, lastCoords.longitude);
+                    if (dist > 10) { // Cihaz hareketsizken büyük konum değişikliklerini filtrele
+                        console.log("Cihaz hareketsizken büyük konum değişimi atlandı:", dist);
+                        return;
                     }
                 }
             }
             
-            // Kalman filtresi (eğer etkinse)
+            // Konum verilerini filtrele
+            let filteredLat = coords.latitude;
+            let filteredLng = coords.longitude;
+            
+            // Kalman filtresi
             if (kalmanFilterCheckbox.checked) {
-                filteredCoords.latitude = kalmanLat.filter(coords.latitude);
-                filteredCoords.longitude = kalmanLng.filter(coords.longitude);
+                // Kalman parametrelerini doğruluğa göre dinamik olarak ayarla
+                const accuracyFactor = Math.max(0.1, Math.min(1, coords.accuracy / 20));
+                const R = 0.01 * accuracyFactor;  // Process noise
+                const Q = 0.1 * accuracyFactor;   // Measurement noise
+                
+                kalmanLat.setParams(R, Q);
+                kalmanLng.setParams(R, Q);
+                
+                filteredLat = kalmanLat.filter(coords.latitude);
+                filteredLng = kalmanLng.filter(coords.longitude);
             }
             
-            // Medyan filtresi (eğer etkinse)
+            // Medyan filtresi
             if (medianFilterCheckbox.checked) {
-                recentPositions.push({
-                    lat: filteredCoords.latitude,
-                    lng: filteredCoords.longitude
-                });
-                
-                // Penceredeki konum sayısını sınırla
+                recentPositions.push({ lat: filteredLat, lng: filteredLng });
                 if (recentPositions.length > MEDIAN_WINDOW) {
                     recentPositions.shift();
                 }
                 
-                // Yeterli veri varsa medyan filtre uygula
                 if (recentPositions.length >= 3) {
                     const lats = recentPositions.map(p => p.lat);
                     const lngs = recentPositions.map(p => p.lng);
-                    
-                    filteredCoords.latitude = medianFilter(lats);
-                    filteredCoords.longitude = medianFilter(lngs);
+                    filteredLat = medianFilter(lats, Math.min(MEDIAN_WINDOW, lats.length));
+                    filteredLng = medianFilter(lngs, Math.min(MEDIAN_WINDOW, lngs.length));
                 }
             }
             
-            // Hız verisini kaydet
-            if (filteredCoords.speed !== null) {
-                const speedKmh = filteredCoords.speed * 3.6;
-                speedData.push({
-                    speed: speedKmh,
-                    timestamp: filteredCoords.timestamp
-                });
-                
-                // Mevcut yolculuk için hız verileri
-                currentSpeeds.push(speedKmh);
-            }
+            // Filtrelenmiş koordinatlar
+            const filteredCoords = {
+                latitude: filteredLat,
+                longitude: filteredLng,
+                accuracy: coords.accuracy,
+                speed: measuredSpeedMs,
+                timestamp: position.timestamp
+            };
             
-            // İlk konumu işle
+            // İlk konum
             if (!lastCoords) {
-                lastCoords = filteredCoords;
-                positions.push({
-                    latitude: filteredCoords.latitude,
-                    longitude: filteredCoords.longitude,
-                    timestamp: filteredCoords.timestamp
+                lastCoords = { 
+                    latitude: filteredCoords.latitude, 
+                    longitude: filteredCoords.longitude, 
+                    timestamp: filteredCoords.timestamp 
+                };
+                positions.push({ 
+                    latitude: filteredCoords.latitude, 
+                    longitude: filteredCoords.longitude, 
+                    timestamp: filteredCoords.timestamp 
                 });
-                
-                // Haritayı mevcut konuma odakla
                 map.setView([filteredCoords.latitude, filteredCoords.longitude], 16);
                 return;
             }
             
-            // Mesafe hesapla (Haversine formülü)
-            const R = 6371;
-            const dLat = deg2rad(filteredCoords.latitude - lastCoords.latitude);
-            const dLon = deg2rad(filteredCoords.longitude - lastCoords.longitude);
-            const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(deg2rad(lastCoords.latitude)) * Math.cos(deg2rad(filteredCoords.latitude)) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const distance = R * c;
+            // Mesafe hesapla
+            const distMeters = haversineDistance(
+                filteredCoords.latitude, filteredCoords.longitude,
+                lastCoords.latitude, lastCoords.longitude
+            );
             
-            // Minimum mesafe eşiği (eğer etkinse)
-            if (distance * 1000 < MIN_DISTANCE) {
-                console.log("Minimum mesafe eşiğinin altında kalan konum filtrelendi:", distance * 1000);
+            // Minimum mesafe kontrolü (küçük sapmaları filtrele)
+            if (distMeters < MIN_DISTANCE) {
                 return;
             }
             
-            // Toplam mesafeyi güncelle (metre cinsinden)
-            totalDistance += distance * 1000;
+            // Anlık hız kontrolü (gerçekçi olmayan değerleri filtrele)
+            const timeDiff = (filteredCoords.timestamp - lastCoords.timestamp) / 1000; // saniye
+            const instantSpeed = timeDiff > 0 ? distMeters / timeDiff : 0;
+            const instantSpeedKmh = instantSpeed * 3.6;
+            
+            // Spor türüne göre maksimum hız limiti
+            const speedLimits = {
+                'walking': 15,       // km/s
+                'running': 25,       // km/s
+                'cycling': 60,       // km/s
+                'driving': 200,      // km/s
+                'open_water_swimming': 10,  // km/s
+                'pool_swimming': 10  // km/s
+            };
+            
+            const currentSpeedLimit = speedLimits[sportTypeSelect.value] || 30;
+            
+            if (instantSpeedKmh > currentSpeedLimit * 1.5) {
+                console.log("Gerçekçi olmayan hız nedeniyle atlandı:", instantSpeedKmh);
+                return;
+            }
+            
+            // Toplam mesafeyi güncelle
+            totalDistance += distMeters;
             distanceElement.textContent = formatDistance(totalDistance);
             
             // Hızı güncelle
-            const speed = filteredCoords.speed !== null ? filteredCoords.speed * 3.6 : 0;
-            speedElement.textContent = `${speed.toFixed(1)} km/s`;
+            const currentSpeed = instantSpeedKmh;
+            speedElement.textContent = `${currentSpeed.toFixed(1)} km/s`;
             
-            // Kalori hesapla ve göster (araba dışındaki türler için)
+            // Hız verilerini kaydet
+            speedData.push({ speed: currentSpeed, timestamp: filteredCoords.timestamp });
+            currentSpeeds.push(currentSpeed);
+            
+            // Kalori hesapla (araba dışındaki türler için)
             if (sportTypeSelect.value !== 'driving') {
                 const userWeight = parseInt(userWeightInput.value) || 70;
                 const now = new Date();
@@ -2213,29 +2232,36 @@
                 caloriesElement.textContent = `${totalCalories.toFixed(0)} kcal`;
             }
             
-            // Hız göstergesini güncelle
+            // Hız göstergesi rengini güncelle
             updateSpeedIndicator();
             
             // Konumu kaydet
-            positions.push({
-                latitude: filteredCoords.latitude,
-                longitude: filteredCoords.longitude,
-                timestamp: filteredCoords.timestamp
+            positions.push({ 
+                latitude: filteredCoords.latitude, 
+                longitude: filteredCoords.longitude, 
+                timestamp: filteredCoords.timestamp 
             });
             
             // Rotayı çiz
             drawRoute();
             
+            // Haritayı son konuma odakla (yakınlaştırma seviyesini koruyarak)
+            map.setView([filteredCoords.latitude, filteredCoords.longitude], map.getZoom());
+            
             // Son koordinatları güncelle
-            lastCoords = filteredCoords;
+            lastCoords = { 
+                latitude: filteredCoords.latitude, 
+                longitude: filteredCoords.longitude, 
+                timestamp: filteredCoords.timestamp 
+            };
         }
         
-        // Gerçek zamanlı hız göstergesi için bilgi panelini güncelle
+        // Yardımcı fonksiyon: Hız göstergesi rengini güncelle
         function updateSpeedIndicator() {
             if (currentSpeeds.length > 0) {
                 const currentSpeed = currentSpeeds[currentSpeeds.length - 1];
                 
-                // Renk değişimi (isteğe bağlı)
+                // Hıza göre renk değişimi
                 if (currentSpeed > 100) {
                     speedElement.style.color = '#c62828';
                 } else if (currentSpeed > 50) {
@@ -2287,6 +2313,56 @@
         function deg2rad(deg) {
             return deg * (Math.PI/180);
         }
+
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Dünya'nın yarıçapı (km)
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            return R * c * 1000; // Metre cinsinden mesafe
+        }
+
+        // sport türüne göre makul anlık hız eşiği (m/s)
+        function plausibleSpeedThresholdMetersPerSec(sportType) {
+            switch (sportType) {
+                case 'running': return 10;       // ~36 km/h (fazla yüksek ama güvenli limit)
+                case 'cycling': return 40;       // ~144 km/h (çok yüksek, ama bisiklet için)
+                case 'driving': return 111;      // ~400 km/h (sadece uçuk veriler için tolerans)
+                case 'open_water_swimming': return 5; // ~18 km/h
+                case 'pool_swimming': return 5;
+                case 'walking': return 3.5;      // ~12.6 km/h
+                default: return 30;
+            }
+        }
+
+        // Clamp helper
+        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+        // EMA state for position + speed
+        let emaPos = null;      // {lat, lng}
+        let emaSpeed = null;    // in km/h
+
+        // Yeniden ayarlanması gerektiğinde çağrılabilir
+        function resetEMA() {
+            emaPos = null;
+            emaSpeed = null;
+        }
+
+        // adaptif Kalman ayarı (R/Q değeri speed/accuracy'a göre)
+        function adaptiveKalmanParamsFromAccuracy(accuracyMeters, speedKmh) {
+            // accuracy düşükse (büyük sayı) process noise R'i büyüt; measurement noise Q'i de büyüt
+            // örnek heuristik:
+            let R = clamp((accuracyMeters/1000) * 0.0005 + 0.00001, 1e-6, 0.01);
+            let Q = clamp((accuracyMeters/1000) * 0.02 + 0.005, 0.0001, 1.0);
+            // hız arttıkça biraz R'i büyüt (daha az güven)
+            R *= clamp(1 + (speedKmh/100), 1, 3);
+            return {R, Q};
+        }
+
         
         function formatDuration(milliseconds) {
             const seconds = Math.floor(milliseconds / 1000);
