@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title data-i18n="page_title"></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    select { padding: 5px; }
+    #lang-links a { margin-right: 10px; text-decoration: none; color: blue; }
+    .active{ font-weight: bold; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1 data-i18n="title"></h1>
+  <p data-i18n="greeting"></p>
+  <p id="username" data-i18n="username"></p>
+  <button data-i18n="save_button"></button>
+
+  <div style="margin-top:20px;">
+    <label for="lang-select" data-i18n="select_language"></label>
+    <select id="lang-select"></select>
+  </div>
+
+  <div style="margin-top:20px;">
+    <label for="lang-select" data-i18n="select_language"></label>
+    <div id="lang-links"></div>
+  </div>
+  
+
+  <script>
+    let fallbackLang = 'en'; // Default language
+    let translations = {};
+    const langSelectContainer = document.getElementById('lang-select');
+    const langLinksContainer = document.getElementById('lang-links');
+
+    // A function that checks the size of translations.json and updates it if necessary.
+    async function checkAndUpdateTranslations() {
+      const savedTranslations = localStorage.getItem('translations');
+      const savedSize = Number(localStorage.getItem('translations_size')) || null;
+
+      try {
+        const res = await fetch('translations.json', { cache: 'no-store' });
+        const blob = await res.clone().blob();
+        const size = blob.size;
+
+        if (!savedTranslations || savedSize !== size) {
+          const data = await res.json();
+          translations = data;
+          localStorage.setItem('translations', JSON.stringify(data));
+          localStorage.setItem('translations_size', String(size));
+        } else {
+          translations = JSON.parse(savedTranslations);
+        }
+
+        return true;
+      } catch (err) {
+        if (savedTranslations) {
+          translations = JSON.parse(savedTranslations);
+          return true;
+        } else {
+          console.error('Translations could not be loaded and localStorage is empty.', err);
+          return false;
+        }
+      }
+    }
+
+    // Upload translations and prepare them for the first screen
+    async function loadTranslations() {
+      const ok = await checkAndUpdateTranslations();
+      if (ok) initLanguage();
+    }
+
+    // Get language from LocalStorage or set default
+    function initLanguage() {
+        const savedLang = JSON.parse(localStorage.getItem('settings'))?.lang || fallbackLang;
+
+        // for select element
+        populateLanguages(savedLang, (langCode, langFullName, currentLang) => {
+            const option = document.createElement('option');
+            option.value = langCode;
+            option.textContent = langFullName;
+            langSelectContainer.appendChild(option);
+            langSelectContainer.value = currentLang;
+        });
+      setLanguage(null, savedLang);
+    }
+
+    // Apply translations on the page
+    function setLanguage(selector, lang) {
+      if (!translations[lang]) return;
+
+      if (selector) {
+        const el = document.querySelector(selector);
+        if (el) {
+          const key = el.getAttribute('data-i18n');
+          if (translations[lang][key]) el.textContent = translations[lang][key];
+        }
+      } else {
+        const elements = document.querySelectorAll('[data-i18n]');
+        elements.forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (translations[lang][key]) el.textContent = translations[lang][key];
+        });
+      }
+
+      // Save language in LocalStorage
+      let settings = JSON.parse(localStorage.getItem('settings')) || {};
+      settings.lang = lang;
+      localStorage.setItem('settings', JSON.stringify(settings));
+
+      // update select element if any
+      if (langSelectContainer) langSelectContainer.value = lang;
+
+      // update links active state if any
+      if (langLinksContainer) {
+        const linkItems = Array.from(langLinksContainer.querySelectorAll('a'));
+        linkItems.forEach(item => item.classList.remove('active'));
+        const activeLink = linkItems.find(item => item.dataset.lang === lang || item.textContent === translations[lang].language_fullname);
+        if (activeLink) activeLink.classList.add('active');
+      }
+    }
+
+    // Clear and reload translations from LocalStorage
+    function refreshTranslations() {
+      localStorage.removeItem('translations');
+      localStorage.removeItem('translations_size');
+      translations = {};
+      loadTranslations();
+    }
+
+    // Fill the languages ​​(clears the select first, creates it with a callback if there is a callback, or creates it itself)
+    function populateLanguages(currentLang, callback) {
+      // remove early return so we can still create lang links if select is absent
+      // if (!langSelectContainer) return;
+
+      // Clear existing options first and links (only if they exist)
+      if (langSelectContainer) langSelectContainer.innerHTML = '';
+      if (langLinksContainer) langLinksContainer.innerHTML = '';
+
+      Object.keys(translations).forEach(langCode => {
+        const langFullName = translations[langCode]?.language_fullname || langCode;
+
+        if (callback && langSelectContainer) {
+          callback(langCode, langFullName, currentLang);
+        } else if (langSelectContainer) {
+          const option = document.createElement('option');
+          option.value = langCode;
+          option.textContent = langFullName;
+          langSelectContainer.appendChild(option);
+        }
+
+        // create <a> links for language switching (if container exists)
+        if (langLinksContainer) {
+          const link = document.createElement('a');
+          link.href = "#";
+          link.textContent = langFullName;
+          link.dataset.lang = langCode;
+          if (langCode === currentLang) link.classList.add('active');
+          link.addEventListener('click', async e => {
+            e.preventDefault();
+            // ensure translations.json is up-to-date before switching
+            await checkAndUpdateTranslations();
+            // repopulate controls (select + links) and apply language
+            populateLanguages(langCode);
+            setLanguage(null, langCode);
+          });
+          langLinksContainer.appendChild(link);
+        }
+      });
+
+      // Set selected value if filled with callback or normal filling
+      if (currentLang && langSelectContainer) langSelectContainer.value = currentLang;
+    }
+
+    // When Select changes, first check translations.json, update if necessary, then apply the language.
+    if (langSelectContainer) {
+      langSelectContainer.addEventListener('change', async e => {
+        // Synchronization: check if the file is up to date before applying the selection
+        await checkAndUpdateTranslations();
+
+        // Update select content if translations have changed
+        populateLanguages(e.target.value);
+
+        setLanguage(null, e.target.value);
+      });
+    }
+
+    // Clear and reload translations from cache (use if necessary)
+    // refreshTranslations();
+
+    // Load translations when the page loads
+    loadTranslations();
+  </script>
+</body>
+</html>

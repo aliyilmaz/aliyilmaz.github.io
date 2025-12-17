@@ -1,0 +1,47 @@
+{
+  "tr": {
+    "page_title": "Çoklu Dil Örneği",
+    "title": "Merhaba Dünya",
+    "greeting": "Hoş geldiniz!",
+    "username": "Kullanıcı adı",
+    "save_button": "Kaydet",
+    "select_language": "Dil Seçin:",
+    "language_fullname": "Türkçe"
+  },
+  "en": {
+    "page_title": "Multi-Language Example",
+    "title": "Hello World",
+    "greeting": "Welcome!",
+    "username": "Username",
+    "save_button": "Save",
+    "select_language": "Select Language:",
+    "language_fullname": "English"
+  },
+  "de": {
+    "page_title": "Mehrsprachiges Beispiel",
+    "title": "Hallo Welt",
+    "greeting": "Willkommen!",
+    "username": "Benutzername",
+    "save_button": "Speichern",
+    "select_language": "Sprache auswählen:",
+    "language_fullname": "Deutsch"
+  },
+  "ru": {
+    "page_title": "Пример многоязычности",
+    "title": "Привет, мир",
+    "greeting": "Добро пожаловать!",
+    "username": "Имя пользователя",
+    "save_button": "Сохранить",
+    "select_language": "Выберите язык:",
+    "language_fullname": "Русский"
+  },
+  "fr": {
+    "page_title": "Exemple multilingue",
+    "title": "Bonjour le monde",
+    "greeting": "Bienvenue!",
+    "username": "Nom d'utilisateur",
+    "save_button": "Enregistrer",
+    "select_language": "Choisir la langue:",
+    "language_fullname": "Français"
+  }
+}
