@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Menu Builder</title>
+  <link rel="stylesheet" href="MenuBuilder.css">
+</head>
+<body>
+  <div id="MenuBuilder">    
+    <div class="menu-creator">
+      <div class="input-group">
+        <input type="text" id="new-menu-name">
+        <button type="button" id="createMenuButton"></button>
+      </div>
+    </div>
+    <div id="menus-container"></div>
+    <h3></h3>
+    <textarea name="data" id="json-output-textarea" style="display: none;"></textarea>
+    <pre id="json-output"></pre>
+  </div>
+
+  <script src="Sortable/Sortable.min.js"></script>
+  <script src="MenuBuilder.js"></script>
+  <script>
+    const options = {    
+        // import: // DB Verisi, Çoklu Menü JSON Kodu
+        // storage: true, // Önbellekleme Durumu, true veya false
+        // output: "#json-output-textarea", // Form için, querySelector(),
+        // createMenu: "Menü Oluştur",
+        // menuName: "Yeni menü adı",
+        // itemName: "Menü öğesi adı",
+        // itemLink: "Bağlantı (https://...)",
+        // itemClass: "Sınıf Adı",
+        // addItemButton: "Öğe Ekle",
+        // openInNewTab: "Öğe yeni pencerede açılsın mı?",
+        // deleteMenu: "Menüyü Sil",
+        // deleteItem: "Öğeyi Sil",
+        // json_output: "JSON Veri Görünümü",
+        // confirmDeleteMenu: "Bu menüyü silmek istediğinizden emin misiniz?",    
+        // editItem: "Çift tıklayarak düzenleyin",    
+        // editMenu: "Tek tıklayarak düzenleyin"
+
+        // import: // DB Data, Multiple Menu JSON Code
+        storage: true, // Caching Status, true or false
+        output: "#json-output-textarea", // For Form, querySelector(),
+        createMenu: "Create Menu",
+        menuName: "New menu name",
+        itemName: "Menu item name",
+        itemLink: "Link (https://...)",
+        itemClass: "Class Name",
+        addItemButton: "Add Item",
+        openInNewTab: "Open item in new window?",
+        deleteMenu: "Delete Menu",
+        deleteItem: "Delete Item",
+        json_output: "JSON Data View",
+        confirmDeleteMenu: "Are you sure you want to delete this menu?",
+        editItem: "Edit with double click",
+        editMenu: "Edit with single click"
+  };
+  new MenuBuilder(options);
+  </script>
+</body>
+</html>
