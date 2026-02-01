@@ -3,14 +3,14 @@ class MenuBuilder {
     this.labels = labels;
     this.menuCounter = 0;
     this.menus = [];
-    this.storageEnabled = labels.storage ?? true; // storage parameter check
+    this.storageEnabled = labels.storage ?? true; // storage parametresi kontrolü
     if (!this.storageEnabled) {
       localStorage.removeItem('menus');
     }
     this.init();
 
     window.addEventListener('DOMContentLoaded', () => {
-      // First, it is checked if there is any external JSON data.
+      // Öncelikle dışarıdan JSON veri var mı kontrol edilir
       if (Array.isArray(labels.import) && labels.import.length > 0) {
         this.menus = labels.import;
       } else if (this.storageEnabled) {
@@ -155,7 +155,7 @@ class MenuBuilder {
       `;
       ul.appendChild(li);
       
-      li.querySelector('.delete-item').addEventListener('click', () => {
+      li.querySelector('.delete-item').addEventListener('click', () => {        
         li.remove();
         this.saveMenus();
       });
@@ -228,16 +228,18 @@ class MenuBuilder {
               <span class="slider"></span>
             </label>
           </div>
-          <button type="button" class="delete-item" onclick="this.closest('li').remove();">×</button>
+          <button type="button" class="delete-item">×</button>
         </div>
       </div>
       <ul class="nested-sortable"></ul>
     `;
 
     list.appendChild(li);
-    list.querySelector('.delete-item').addEventListener('click', ()=>{
+    li.querySelector('.delete-item').addEventListener('click', () => {
+      li.remove();
       this.saveMenus();
     });
+
     this.addEditEvents(li.querySelector('.item-name'));
     this.addEditEvents(li.querySelector('.item-link'));
     this.addEditEvents(li.querySelector('.item-class'));
