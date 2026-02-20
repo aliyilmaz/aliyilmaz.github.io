@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>Çok Dilli Notlu Video Kaydedici</title>
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #f5f7fb;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        /* Üst satır: sekmeler ve dil seçici yan yana */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        /* Tabs - header içinde */
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 3rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            flex: 1 1 auto;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 3rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #4b5565;
+            cursor: pointer;
+            transition: 0.2s;
+            flex: 1 1 auto;
+            min-width: 120px;
+        }
+        .tab-btn.active {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+        }
+        .lang-selector {
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 3rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .lang-selector select {
+            padding: 0.5rem 2rem 0.5rem 1rem;
+            border-radius: 2rem;
+            border: 1px solid #dde3ed;
+            background: #f8fafc;
+            font-size: 1rem;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234b5565' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            background-size: 16px;
+        }
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* YAN YANA DÜZEN */
+        .split-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        .video-area {
+            flex: 0 0 500px;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .notes-area {
+            flex: 1 1 450px;
+            background: #f8fafc;
+            border-radius: 1.2rem;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 650px;
+            overflow-y: auto;
+        }
+        .player-container {
+            background: #0f172a;
+            border-radius: 1.2rem;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            width: 100%;
+        }
+        .live-container {
+            background: #0f172a;
+            border-radius: 1.2rem;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            width: 100%;
+        }
+        #cameraTab .live-container,
+        #cameraTab .player-container {
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #liveCamera {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #0b0b1a;
+        }
+        #recordedVideo, #recordedVideoFile, #youtubeContainerYt {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #0b0b1a;
+        }
+        #youtubeContainerYt iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .section-header h3 {
+            margin: 0;
+        }
+        button {
+            background: #f1f4f9;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 3rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #dde3ed;
+        }
+        button.primary {
+            background: #3b82f6;
+            color: white;
+            border: none;
+        }
+        button.warning {
+            background: #f59e0b;
+            color: white;
+            border: none;
+        }
+        button:active { transform: scale(0.96); }
+        button:disabled { opacity: 0.5; pointer-events: none; }
+        .duration-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #eef2f6;
+            padding: 0.3rem 1rem;
+            border-radius: 3rem;
+        }
+        .duration-control input {
+            width: 70px;
+            padding: 0.3rem;
+            border-radius: 2rem;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+        }
+        .notes-list {
+            list-style: none;
+            max-height: 350px;
+            overflow-y: auto;
+            margin: 0.5rem 0;
+        }
+        .note-item {
+            background: white;
+            border-radius: 0.8rem;
+            padding: 0.7rem 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.8rem;
+            border-left: 5px solid #3b82f6;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .note-time {
+            font-family: monospace;
+            background: #e9edf2;
+            padding: 0.2rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+        }
+        .note-text { flex: 2; word-break: break-word; font-size: 0.95rem; }
+        .delete-note {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: #b91c1c;
+            cursor: pointer;
+            padding: 0 0.3rem;
+        }
+        .footer-info {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #5f6c80;
+            margin-top: 0.5rem;
+        }
+        hr { margin: 0.8rem 0; opacity: 0.2; }
+        .file-input, .youtube-input {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .file-input input, .youtube-input input {
+            flex: 2;
+            min-width: 200px;
+            padding: 0.6rem 1rem;
+            border-radius: 3rem;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 2rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .modal-content h2 {
+            margin-bottom: 1rem;
+            color: #1e2b3a;
+        }
+        .modal-content textarea {
+            width: 100%;
+            height: 120px;
+            padding: 1rem;
+            border-radius: 1.5rem;
+            border: 2px solid #e2e8f0;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: flex-end;
+        }
+        .modal-actions button {
+            min-width: 100px;
+        }
+        .speech-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            margin-right: auto;
+        }
+        .speech-btn.listening {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Butonları yan yana */
+        .action-buttons {
+            display: flex;
+            gap: 0.8rem;
+            width: 100%;
+        }
+        .action-buttons button {
+            flex: 1;
+        }
+
+        @media (max-width: 800px) {
+            .split-panel { flex-direction: column; }
+            .video-area {
+                flex: 1 1 auto;
+                width: 100%;
+            }
+            .notes-area { max-height: none; }
+            #cameraTab .live-container,
+            #cameraTab .player-container {
+                max-width: 100%;
+            }
+            .section-header { flex-wrap: wrap; gap: 0.5rem; }
+            .header { flex-direction: column; align-items: stretch; }
+            .tabs { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Üst satır: sekmeler ve dil seçici yan yana -->
+    <div class="header">
+        <!-- Sekmeler (artık header içinde) -->
+        <div class="tabs" id="tabContainer">
+            <button class="tab-btn active" data-tab="camera" id="tabCamera">📸 Canlı Yayın</button>
+            <button class="tab-btn" data-tab="file" id="tabFile">📁 Dosya Yükle</button>
+            <button class="tab-btn" data-tab="youtube" id="tabYoutube">▶️ YouTube</button>
+        </div>
+        <!-- Dil seçici -->
+        <div class="lang-selector">
+            <span id="lang-label" style="color: #4b5565;">🌐 Dil / Language:</span>
+            <select id="langSelect">
+                <option value="tr">Türkçe</option>
+                <option value="en">English</option>
+                <option value="ru">Русский</option>
+                <option value="ar">العربية</option>
+                <option value="fr">Français</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- CANLI YAYIN TAB'İ -->
+    <div id="cameraTab" class="tab-content active">
+        <div class="split-panel">
+            <div class="video-area">
+                <div class="section-header">
+                    <h3 id="cameraLiveTitle">🔴 Canlı Kamera</h3>
+                    <button id="recordToggleBtn" class="primary">⏺ Kaydet</button>
+                </div>
+                <div class="live-container">
+                    <video id="liveCamera" autoplay playsinline muted></video>
+                </div>
+                <div class="section-header" style="margin-top: 0.5rem;">
+                    <h3 id="recordedVideoTitle">🎥 Kaydedilen Video</h3>
+                    <button id="clearRecordedBtn" class="warning" style="padding: 0.4rem 1rem;">🗑️ Temizle</button>
+                </div>
+                <div class="player-container">
+                    <video id="recordedVideo" controls></video>
+                </div>
+            </div>
+            <div class="notes-area">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 id="notesTitle">📌 Notlar (<span id="noteCount">0</span>)</h3>
+                    <button id="clearNotesBtn" style="background:#e9eef5;" id="clearNotesBtnText">🧹 Temizle</button>
+                </div>
+                <div class="duration-control">
+                    <span id="durationLabel">⏱️ Süre:</span>
+                    <input type="number" id="noteDuration" min="0.5" max="10" step="0.5" value="3">
+                    <span id="durationSec">sn</span>
+                </div>
+                <div class="action-buttons">
+                    <button id="addNoteBtn" class="primary" style="flex:1;">📝 Not Ekle</button>
+                    <button id="finishBtn" class="warning" style="flex:1;">🎁 Bitir & ZIP indir</button>
+                </div>
+                <ul id="notesList" class="notes-list">
+                    <li style="color:#94a3b8; text-align:center;" id="noNotesPlaceholder">Henüz not eklenmedi.</li>
+                </ul>
+                <div class="footer-info" id="footerInfo">Notlar .vtt altyazı olarak kaydedilir.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOSYA YÜKLE TAB'İ -->
+    <div id="fileTab" class="tab-content">
+        <div class="file-input">
+            <input type="file" id="fileUpload" accept="video/*">
+            <button id="loadFileBtn" id="loadFileBtnText">📂 Yükle ve Oynat</button>
+        </div>
+        <div class="split-panel">
+            <div class="video-area">
+                <h3 id="fileVideoTitle">📁 Yüklenen Video</h3>
+                <div class="player-container">
+                    <video id="recordedVideoFile" controls></video>
+                </div>
+            </div>
+            <div class="notes-area">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 id="notesTitleFile">📌 Notlar (<span id="noteCountFile">0</span>)</h3>
+                    <button id="clearNotesBtnFile" style="background:#e9eef5;" id="clearNotesBtnFileText">🧹 Temizle</button>
+                </div>
+                <div class="duration-control">
+                    <span id="durationLabelFile">⏱️ Süre:</span>
+                    <input type="number" id="noteDurationFile" min="0.5" max="10" step="0.5" value="3">
+                    <span id="durationSecFile">sn</span>
+                </div>
+                <div class="action-buttons">
+                    <button id="addNoteBtnFile" class="primary" style="flex:1;">📝 Not Ekle</button>
+                    <button id="finishBtnFile" class="warning" style="flex:1;">🎁 Bitir & ZIP indir</button>
+                </div>
+                <ul id="notesListFile" class="notes-list">
+                    <li style="color:#94a3b8; text-align:center;" id="noNotesPlaceholderFile">Henüz not eklenmedi.</li>
+                </ul>
+                <div class="footer-info" id="footerInfoFile">Notlar .vtt altyazı olarak kaydedilir.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YOUTUBE TAB'İ -->
+    <div id="youtubeTab" class="tab-content">
+        <div class="youtube-input">
+            <input type="text" id="youtubeInput" placeholder="Video ID veya link (ör: dQw4w9WgXcQ)">
+            <button id="loadYoutubeBtn" id="loadYoutubeBtnText">▶️ Yükle</button>
+        </div>
+        <div class="split-panel">
+            <div class="video-area">
+                <h3 id="youtubeVideoTitle">▶️ YouTube Video</h3>
+                <div class="player-container">
+                    <div id="youtubeContainerYt"></div>
+                </div>
+            </div>
+            <div class="notes-area">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 id="notesTitleYt">📌 Notlar (<span id="noteCountYt">0</span>)</h3>
+                    <button id="clearNotesBtnYt" style="background:#e9eef5;" id="clearNotesBtnYtText">🧹 Temizle</button>
+                </div>
+                <div class="duration-control">
+                    <span id="durationLabelYt">⏱️ Süre:</span>
+                    <input type="number" id="noteDurationYt" min="0.5" max="10" step="0.5" value="3">
+                    <span id="durationSecYt">sn</span>
+                </div>
+                <div class="action-buttons">
+                    <button id="addNoteBtnYt" class="primary" style="flex:1;">📝 Not Ekle</button>
+                    <button id="finishBtnYt" class="warning" style="flex:1;">🎁 Bitir & ZIP indir</button>
+                </div>
+                <ul id="notesListYt" class="notes-list">
+                    <li style="color:#94a3b8; text-align:center;" id="noNotesPlaceholderYt">Henüz not eklenmedi.</li>
+                </ul>
+                <div class="footer-info" id="footerInfoYt">YouTube'da video dosyası eklenmez, sadece altyazı indirilir.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NOT EKLEME MODALI (sesli yazma özellikli) -->
+<div id="noteModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle">📝 Not Ekle</h2>
+        <textarea id="noteTextInput" placeholder="Notunuzu yazın veya mikrofon butonuna basıp konuşun..."></textarea>
+        <div style="display: flex; gap: 0.8rem; align-items: center;">
+            <button id="speechBtn" class="speech-btn">🎤 Sesle Yaz</button>
+            <div style="flex:1"></div>
+            <button id="modalCancelBtn" id="modalCancelBtnText">İptal</button>
+            <button id="modalSaveBtn" class="primary" id="modalSaveBtnText">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // ----- ÇEVİRİ SÖZLÜĞÜ -----
+    const translations = {
+        tr: {
+            tabCamera: "📸 Canlı Yayın",
+            tabFile: "📁 Dosya Yükle",
+            tabYoutube: "▶️ YouTube",
+            cameraLiveTitle: "🔴 Canlı Kamera",
+            recordToggleStart: "⏺ Kaydet",
+            recordToggleStop: "⏹ Durdur",
+            recordedVideoTitle: "🎥 Kaydedilen Video",
+            clearRecordedBtn: "🗑️ Temizle",
+            notesTitle: "📌 Notlar",
+            clearNotesBtn: "🧹 Temizle",
+            durationLabel: "⏱️ Süre:",
+            durationSec: "sn",
+            addNoteBtn: "📝 Not Ekle",
+            finishBtn: "🎁 Bitir & ZIP indir",
+            noNotesPlaceholder: "Henüz not eklenmedi.",
+            footerInfo: "Notlar .vtt altyazı olarak kaydedilir.",
+            fileVideoTitle: "📁 Yüklenen Video",
+            loadFileBtn: "📂 Yükle ve Oynat",
+            youtubeVideoTitle: "▶️ YouTube Video",
+            youtubeInputPlaceholder: "Video ID veya link (ör: dQw4w9WgXcQ)",
+            loadYoutubeBtn: "▶️ Yükle",
+            footerInfoYt: "YouTube'da video dosyası eklenmez, sadece altyazı indirilir.",
+            modalTitle: "📝 Not Ekle",
+            noteTextPlaceholder: "Notunuzu yazın veya mikrofon butonuna basıp konuşun...",
+            speechBtn: "🎤 Sesle Yaz",
+            listeningBtn: "⏹️ Dinliyor...",
+            modalCancel: "İptal",
+            modalSave: "Kaydet",
+            // Uyarı mesajları
+            alertNoCamera: "Kamera/mikrofon izni gerekli: ",
+            alertNoStream: "Kamera akışı yok",
+            alertNewRecordClear: "Yeni kayıt mevcut notları temizlesin?",
+            alertRecVideoNotFound: "Canlı kayıt videosu yok. Önce kayıt yapıp durdurun.",
+            alertFileNotFound: "Dosya yüklenmemiş.",
+            alertYoutubeNotFound: "YouTube videosu yüklenmemiş.",
+            alertTimeError: "Zaman alınamadı.",
+            alertNoteEmpty: "Not boş olamaz.",
+            alertError: "Bir hata oluştu.",
+            alertConfirmClearNotes: "Tüm notlar silinsin mi?",
+            alertYoutubeNoVideo: "YouTube kaynağında video dosyası eklenemiyor, sadece altyazı indirilecek.",
+            alertNoVideoBlob: "Video blobu bulunamadı, sadece altyazı indiriliyor.",
+            alertSelectFile: "Dosya seçin",
+            alertValidYoutubeId: "Geçerli bir YouTube video ID’si veya linki girin.",
+        },
+        en: {
+            tabCamera: "📸 Live Camera",
+            tabFile: "📁 Upload File",
+            tabYoutube: "▶️ YouTube",
+            cameraLiveTitle: "🔴 Live Camera",
+            recordToggleStart: "⏺ Record",
+            recordToggleStop: "⏹ Stop",
+            recordedVideoTitle: "🎥 Recorded Video",
+            clearRecordedBtn: "🗑️ Clear",
+            notesTitle: "📌 Notes",
+            clearNotesBtn: "🧹 Clear",
+            durationLabel: "⏱️ Duration:",
+            durationSec: "sec",
+            addNoteBtn: "📝 Add Note",
+            finishBtn: "🎁 Finish & Download ZIP",
+            noNotesPlaceholder: "No notes yet.",
+            footerInfo: "Notes are saved as .vtt subtitles.",
+            fileVideoTitle: "📁 Uploaded Video",
+            loadFileBtn: "📂 Load and Play",
+            youtubeVideoTitle: "▶️ YouTube Video",
+            youtubeInputPlaceholder: "Video ID or link (e.g., dQw4w9WgXcQ)",
+            loadYoutubeBtn: "▶️ Load",
+            footerInfoYt: "Video file is not included for YouTube, only subtitles.",
+            modalTitle: "📝 Add Note",
+            noteTextPlaceholder: "Write your note or press the microphone button and speak...",
+            speechBtn: "🎤 Voice Typing",
+            listeningBtn: "⏹️ Listening...",
+            modalCancel: "Cancel",
+            modalSave: "Save",
+            // Alert messages
+            alertNoCamera: "Camera/microphone permission required: ",
+            alertNoStream: "No camera stream",
+            alertNewRecordClear: "New recording, clear existing notes?",
+            alertRecVideoNotFound: "No recorded video. Please record first.",
+            alertFileNotFound: "No file uploaded.",
+            alertYoutubeNotFound: "No YouTube video loaded.",
+            alertTimeError: "Could not get current time.",
+            alertNoteEmpty: "Note cannot be empty.",
+            alertError: "An error occurred.",
+            alertConfirmClearNotes: "Delete all notes?",
+            alertYoutubeNoVideo: "Video file cannot be added for YouTube, only subtitles will be downloaded.",
+            alertNoVideoBlob: "No video blob found, only subtitles will be downloaded.",
+            alertSelectFile: "Please select a file",
+            alertValidYoutubeId: "Please enter a valid YouTube video ID or link.",
+        },
+        ru: {
+            tabCamera: "📸 Прямой эфир",
+            tabFile: "📁 Загрузить файл",
+            tabYoutube: "▶️ YouTube",
+            cameraLiveTitle: "🔴 Прямая камера",
+            recordToggleStart: "⏺ Запись",
+            recordToggleStop: "⏹ Стоп",
+            recordedVideoTitle: "🎥 Записанное видео",
+            clearRecordedBtn: "🗑️ Очистить",
+            notesTitle: "📌 Заметки",
+            clearNotesBtn: "🧹 Очистить",
+            durationLabel: "⏱️ Длительность:",
+            durationSec: "сек",
+            addNoteBtn: "📝 Добавить заметку",
+            finishBtn: "🎁 Готово и скачать ZIP",
+            noNotesPlaceholder: "Заметок пока нет.",
+            footerInfo: "Заметки сохраняются как субтитры .vtt.",
+            fileVideoTitle: "📁 Загруженное видео",
+            loadFileBtn: "📂 Загрузить и воспроизвести",
+            youtubeVideoTitle: "▶️ YouTube видео",
+            youtubeInputPlaceholder: "ID видео или ссылка (например, dQw4w9WgXcQ)",
+            loadYoutubeBtn: "▶️ Загрузить",
+            footerInfoYt: "Видеофайл не добавляется для YouTube, только субтитры.",
+            modalTitle: "📝 Добавить заметку",
+            noteTextPlaceholder: "Напишите заметку или нажмите кнопку микрофона и говорите...",
+            speechBtn: "🎤 Голосовой ввод",
+            listeningBtn: "⏹️ Слушаю...",
+            modalCancel: "Отмена",
+            modalSave: "Сохранить",
+            // Alert messages
+            alertNoCamera: "Требуется разрешение камеры/микрофона: ",
+            alertNoStream: "Нет потока камеры",
+            alertNewRecordClear: "Новая запись, очистить существующие заметки?",
+            alertRecVideoNotFound: "Нет записанного видео. Сначала сделайте запись.",
+            alertFileNotFound: "Файл не загружен.",
+            alertYoutubeNotFound: "YouTube видео не загружено.",
+            alertTimeError: "Не удалось получить текущее время.",
+            alertNoteEmpty: "Заметка не может быть пустой.",
+            alertError: "Произошла ошибка.",
+            alertConfirmClearNotes: "Удалить все заметки?",
+            alertYoutubeNoVideo: "Видеофайл не может быть добавлен для YouTube, будут загружены только субтитры.",
+            alertNoVideoBlob: "Видео не найдено, будут загружены только субтитры.",
+            alertSelectFile: "Пожалуйста, выберите файл",
+            alertValidYoutubeId: "Пожалуйста, введите действительный ID видео YouTube или ссылку.",
+        },
+        ar: {
+            tabCamera: "📸 كاميرا مباشرة",
+            tabFile: "📁 رفع ملف",
+            tabYoutube: "▶️ يوتيوب",
+            cameraLiveTitle: "🔴 كاميرا مباشرة",
+            recordToggleStart: "⏺ تسجيل",
+            recordToggleStop: "⏹ إيقاف",
+            recordedVideoTitle: "🎥 الفيديو المسجل",
+            clearRecordedBtn: "🗑️ مسح",
+            notesTitle: "📌 ملاحظات",
+            clearNotesBtn: "🧹 مسح",
+            durationLabel: "⏱️ المدة:",
+            durationSec: "ثانية",
+            addNoteBtn: "📝 إضافة ملاحظة",
+            finishBtn: "🎁 إنهاء وتحميل ZIP",
+            noNotesPlaceholder: "لا توجد ملاحظات بعد.",
+            footerInfo: "يتم حفظ الملاحظات كترجمة .vtt.",
+            fileVideoTitle: "📁 الفيديو المرفوع",
+            loadFileBtn: "📂 تحميل وتشغيل",
+            youtubeVideoTitle: "▶️ فيديو يوتيوب",
+            youtubeInputPlaceholder: "معرف الفيديو أو الرابط (مثال: dQw4w9WgXcQ)",
+            loadYoutubeBtn: "▶️ تحميل",
+            footerInfoYt: "ملف الفيديو غير مضاف لليوتيوب، يتم تحميل الترجمة فقط.",
+            modalTitle: "📝 إضافة ملاحظة",
+            noteTextPlaceholder: "اكتب ملاحظتك أو اضغط على زر الميكروفون وتحدث...",
+            speechBtn: "🎤 كتابة صوتية",
+            listeningBtn: "⏹️ استماع...",
+            modalCancel: "إلغاء",
+            modalSave: "حفظ",
+            // Alert messages
+            alertNoCamera: "إذن الكاميرا/الميكروفون مطلوب: ",
+            alertNoStream: "لا يوجد بث كاميرا",
+            alertNewRecordClear: "تسجيل جديد، هل تريد مسح الملاحظات الحالية؟",
+            alertRecVideoNotFound: "لا يوجد فيديو مسجل. يرجى التسجيل أولاً.",
+            alertFileNotFound: "لم يتم رفع ملف.",
+            alertYoutubeNotFound: "لم يتم تحميل فيديو يوتيوب.",
+            alertTimeError: "تعذر الحصول على الوقت الحالي.",
+            alertNoteEmpty: "لا يمكن أن تكون الملاحظة فارغة.",
+            alertError: "حدث خطأ.",
+            alertConfirmClearNotes: "حذف جميع الملاحظات؟",
+            alertYoutubeNoVideo: "لا يمكن إضافة ملف فيديو ليوتيوب، سيتم تحميل الترجمة فقط.",
+            alertNoVideoBlob: "لم يتم العثور على فيديو، سيتم تحميل الترجمة فقط.",
+            alertSelectFile: "الرجاء تحديد ملف",
+            alertValidYoutubeId: "الرجاء إدخال معرف فيديو يوتيوب صالح أو رابط.",
+        },
+        fr: {
+            tabCamera: "📸 Caméra en direct",
+            tabFile: "📁 Télécharger un fichier",
+            tabYoutube: "▶️ YouTube",
+            cameraLiveTitle: "🔴 Caméra en direct",
+            recordToggleStart: "⏺ Enregistrer",
+            recordToggleStop: "⏹ Arrêter",
+            recordedVideoTitle: "🎥 Vidéo enregistrée",
+            clearRecordedBtn: "🗑️ Effacer",
+            notesTitle: "📌 Notes",
+            clearNotesBtn: "🧹 Effacer",
+            durationLabel: "⏱️ Durée:",
+            durationSec: "sec",
+            addNoteBtn: "📝 Ajouter une note",
+            finishBtn: "🎁 Terminer et télécharger ZIP",
+            noNotesPlaceholder: "Aucune note pour l'instant.",
+            footerInfo: "Les notes sont enregistrées sous forme de sous-titres .vtt.",
+            fileVideoTitle: "📁 Vidéo téléchargée",
+            loadFileBtn: "📂 Charger et lire",
+            youtubeVideoTitle: "▶️ Vidéo YouTube",
+            youtubeInputPlaceholder: "ID de la vidéo ou lien (ex: dQw4w9WgXcQ)",
+            loadYoutubeBtn: "▶️ Charger",
+            footerInfoYt: "Le fichier vidéo n'est pas inclus pour YouTube, seulement les sous-titres.",
+            modalTitle: "📝 Ajouter une note",
+            noteTextPlaceholder: "Écrivez votre note ou appuyez sur le bouton micro et parlez...",
+            speechBtn: "🎤 Saisie vocale",
+            listeningBtn: "⏹️ Écoute...",
+            modalCancel: "Annuler",
+            modalSave: "Enregistrer",
+            // Alert messages
+            alertNoCamera: "Autorisation caméra/micro requise : ",
+            alertNoStream: "Pas de flux caméra",
+            alertNewRecordClear: "Nouvel enregistrement, effacer les notes existantes ?",
+            alertRecVideoNotFound: "Aucune vidéo enregistrée. Veuillez d'abord enregistrer.",
+            alertFileNotFound: "Aucun fichier téléchargé.",
+            alertYoutubeNotFound: "Aucune vidéo YouTube chargée.",
+            alertTimeError: "Impossible d'obtenir le temps actuel.",
+            alertNoteEmpty: "La note ne peut pas être vide.",
+            alertError: "Une erreur est survenue.",
+            alertConfirmClearNotes: "Supprimer toutes les notes ?",
+            alertYoutubeNoVideo: "Le fichier vidéo ne peut pas être ajouté pour YouTube, seuls les sous-titres seront téléchargés.",
+            alertNoVideoBlob: "Aucun blob vidéo trouvé, seuls les sous-titres seront téléchargés.",
+            alertSelectFile: "Veuillez sélectionner un fichier",
+            alertValidYoutubeId: "Veuillez entrer un ID de vidéo YouTube ou un lien valide.",
+        }
+    };
+
+    // Şu anki dil
+    let currentLang = 'tr';
+
+    // DOM elementleri (çevrilecek olanlar)
+    const elements = {
+        tabCamera: document.getElementById('tabCamera'),
+        tabFile: document.getElementById('tabFile'),
+        tabYoutube: document.getElementById('tabYoutube'),
+        cameraLiveTitle: document.getElementById('cameraLiveTitle'),
+        recordToggleBtn: document.getElementById('recordToggleBtn'),
+        recordedVideoTitle: document.getElementById('recordedVideoTitle'),
+        clearRecordedBtn: document.getElementById('clearRecordedBtn'),
+        notesTitle: document.querySelector('#notesTitle'),
+        clearNotesBtn: document.getElementById('clearNotesBtn'),
+        durationLabel: document.getElementById('durationLabel'),
+        durationSec: document.getElementById('durationSec'),
+        addNoteBtn: document.getElementById('addNoteBtn'),
+        finishBtn: document.getElementById('finishBtn'),
+        noNotesPlaceholder: document.getElementById('noNotesPlaceholder'),
+        footerInfo: document.getElementById('footerInfo'),
+        fileVideoTitle: document.getElementById('fileVideoTitle'),
+        loadFileBtn: document.getElementById('loadFileBtn'),
+        youtubeVideoTitle: document.getElementById('youtubeVideoTitle'),
+        youtubeInput: document.getElementById('youtubeInput'),
+        loadYoutubeBtn: document.getElementById('loadYoutubeBtn'),
+        footerInfoYt: document.getElementById('footerInfoYt'),
+        modalTitle: document.getElementById('modalTitle'),
+        noteTextInput: document.getElementById('noteTextInput'),
+        speechBtn: document.getElementById('speechBtn'),
+        modalCancelBtn: document.getElementById('modalCancelBtn'),
+        modalSaveBtn: document.getElementById('modalSaveBtn'),
+        // Diğer sekmeler
+        notesTitleFile: document.getElementById('notesTitleFile'),
+        clearNotesBtnFile: document.getElementById('clearNotesBtnFile'),
+        durationLabelFile: document.getElementById('durationLabelFile'),
+        durationSecFile: document.getElementById('durationSecFile'),
+        addNoteBtnFile: document.getElementById('addNoteBtnFile'),
+        finishBtnFile: document.getElementById('finishBtnFile'),
+        noNotesPlaceholderFile: document.getElementById('noNotesPlaceholderFile'),
+        footerInfoFile: document.getElementById('footerInfoFile'),
+        notesTitleYt: document.getElementById('notesTitleYt'),
+        clearNotesBtnYt: document.getElementById('clearNotesBtnYt'),
+        durationLabelYt: document.getElementById('durationLabelYt'),
+        durationSecYt: document.getElementById('durationSecYt'),
+        addNoteBtnYt: document.getElementById('addNoteBtnYt'),
+        finishBtnYt: document.getElementById('finishBtnYt'),
+        noNotesPlaceholderYt: document.getElementById('noNotesPlaceholderYt'),
+        footerInfoYt: document.getElementById('footerInfoYt'),
+        langLabel: document.getElementById('lang-label'),
+    };
+
+    // Çeviri fonksiyonu
+    function translatePage(lang) {
+        const t = translations[lang];
+        if (!t) return;
+
+        if (elements.tabCamera) elements.tabCamera.textContent = t.tabCamera;
+        if (elements.tabFile) elements.tabFile.textContent = t.tabFile;
+        if (elements.tabYoutube) elements.tabYoutube.textContent = t.tabYoutube;
+        if (elements.cameraLiveTitle) elements.cameraLiveTitle.textContent = t.cameraLiveTitle;
+        if (elements.recordToggleBtn) {
+            if (elements.recordToggleBtn.classList.contains('warning')) {
+                elements.recordToggleBtn.textContent = t.recordToggleStop;
+            } else {
+                elements.recordToggleBtn.textContent = t.recordToggleStart;
+            }
+        }
+        if (elements.recordedVideoTitle) elements.recordedVideoTitle.textContent = t.recordedVideoTitle;
+        if (elements.clearRecordedBtn) elements.clearRecordedBtn.textContent = t.clearRecordedBtn;
+        if (elements.notesTitle) {
+            const countSpan = elements.notesTitle.querySelector('span');
+            const count = countSpan ? countSpan.textContent : '0';
+            elements.notesTitle.innerHTML = `${t.notesTitle} (<span id="noteCount">${count}</span>)`;
+        }
+        if (elements.clearNotesBtn) elements.clearNotesBtn.textContent = t.clearNotesBtn;
+        if (elements.durationLabel) elements.durationLabel.textContent = t.durationLabel;
+        if (elements.durationSec) elements.durationSec.textContent = t.durationSec;
+        if (elements.addNoteBtn) elements.addNoteBtn.textContent = t.addNoteBtn;
+        if (elements.finishBtn) elements.finishBtn.textContent = t.finishBtn;
+        if (elements.noNotesPlaceholder) elements.noNotesPlaceholder.textContent = t.noNotesPlaceholder;
+        if (elements.footerInfo) elements.footerInfo.textContent = t.footerInfo;
+        if (elements.fileVideoTitle) elements.fileVideoTitle.textContent = t.fileVideoTitle;
+        if (elements.loadFileBtn) elements.loadFileBtn.textContent = t.loadFileBtn;
+        if (elements.youtubeVideoTitle) elements.youtubeVideoTitle.textContent = t.youtubeVideoTitle;
+        if (elements.youtubeInput) elements.youtubeInput.placeholder = t.youtubeInputPlaceholder;
+        if (elements.loadYoutubeBtn) elements.loadYoutubeBtn.textContent = t.loadYoutubeBtn;
+        if (elements.footerInfoYt) elements.footerInfoYt.textContent = t.footerInfoYt;
+        if (elements.modalTitle) elements.modalTitle.textContent = t.modalTitle;
+        if (elements.noteTextInput) elements.noteTextInput.placeholder = t.noteTextPlaceholder;
+        if (elements.speechBtn) {
+            if (elements.speechBtn.classList.contains('listening')) {
+                elements.speechBtn.textContent = t.listeningBtn;
+            } else {
+                elements.speechBtn.textContent = t.speechBtn;
+            }
+        }
+        if (elements.modalCancelBtn) elements.modalCancelBtn.textContent = t.modalCancel;
+        if (elements.modalSaveBtn) elements.modalSaveBtn.textContent = t.modalSave;
+
+        // Diğer sekme notları
+        if (elements.notesTitleFile) {
+            const countSpan = elements.notesTitleFile.querySelector('span');
+            const count = countSpan ? countSpan.textContent : '0';
+            elements.notesTitleFile.innerHTML = `${t.notesTitle} (<span id="noteCountFile">${count}</span>)`;
+        }
+        if (elements.clearNotesBtnFile) elements.clearNotesBtnFile.textContent = t.clearNotesBtn;
+        if (elements.durationLabelFile) elements.durationLabelFile.textContent = t.durationLabel;
+        if (elements.durationSecFile) elements.durationSecFile.textContent = t.durationSec;
+        if (elements.addNoteBtnFile) elements.addNoteBtnFile.textContent = t.addNoteBtn;
+        if (elements.finishBtnFile) elements.finishBtnFile.textContent = t.finishBtn;
+        if (elements.noNotesPlaceholderFile) elements.noNotesPlaceholderFile.textContent = t.noNotesPlaceholder;
+        if (elements.footerInfoFile) elements.footerInfoFile.textContent = t.footerInfo;
+
+        if (elements.notesTitleYt) {
+            const countSpan = elements.notesTitleYt.querySelector('span');
+            const count = countSpan ? countSpan.textContent : '0';
+            elements.notesTitleYt.innerHTML = `${t.notesTitle} (<span id="noteCountYt">${count}</span>)`;
+        }
+        if (elements.clearNotesBtnYt) elements.clearNotesBtnYt.textContent = t.clearNotesBtn;
+        if (elements.durationLabelYt) elements.durationLabelYt.textContent = t.durationLabel;
+        if (elements.durationSecYt) elements.durationSecYt.textContent = t.durationSec;
+        if (elements.addNoteBtnYt) elements.addNoteBtnYt.textContent = t.addNoteBtn;
+        if (elements.finishBtnYt) elements.finishBtnYt.textContent = t.finishBtn;
+        if (elements.noNotesPlaceholderYt) elements.noNotesPlaceholderYt.textContent = t.noNotesPlaceholder;
+        if (elements.footerInfoYt) elements.footerInfoYt.textContent = t.footerInfoYt;
+
+        if (elements.langLabel) elements.langLabel.textContent = '🌐 ' + (lang === 'tr' ? 'Dil' : lang === 'en' ? 'Language' : lang === 'ru' ? 'Язык' : lang === 'ar' ? 'اللغة' : 'Langue') + ':';
+    }
+
+    // Dil değiştir
+    const langSelect = document.getElementById('langSelect');
+
+    // Tarayıcı dilini algıla ve varsayılanı ayarla
+    function getBrowserLanguage() {
+        const browserLang = navigator.language || navigator.userLanguage || 'en';
+        const langCode = browserLang.split('-')[0]; // 'tr', 'en', 'fr' gibi
+        const supported = ['tr', 'en', 'ru', 'ar', 'fr'];
+        if (supported.includes(langCode)) {
+            return langCode;
+        }
+        return 'en';
+    }
+
+    currentLang = getBrowserLanguage();
+    langSelect.value = currentLang;
+
+    langSelect.addEventListener('change', (e) => {
+        currentLang = e.target.value;
+        translatePage(currentLang);
+        if (recognition) {
+            switch (currentLang) {
+                case 'tr': recognition.lang = 'tr-TR'; break;
+                case 'en': recognition.lang = 'en-US'; break;
+                case 'ru': recognition.lang = 'ru-RU'; break;
+                case 'ar': recognition.lang = 'ar-SA'; break;
+                case 'fr': recognition.lang = 'fr-FR'; break;
+                default: recognition.lang = 'tr-TR';
+            }
+        }
+    });
+
+    // ----- ORTAK DEĞİŞKENLER -----
+    let notes = [];
+    let currentSource = 'camera';
+
+    // Canlı kayıt
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordedBlob = null;
+    let recordedVideoURL = null;
+
+    // Dosya yükleme
+    let uploadedFileBlob = null;
+    let uploadedFileName = 'video.mp4';
+
+    // YouTube
+    let youtubePlayer = null;
+
+    // Not ekleme modalı
+    const modal = document.getElementById('noteModal');
+    const noteTextInput = document.getElementById('noteTextInput');
+    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+    const speechBtn = document.getElementById('speechBtn');
+    let pendingNoteSource = null;
+    let pendingNoteTime = null;
+
+    // Ses tanıma
+    let recognition = null;
+    let isListening = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = currentLang === 'tr' ? 'tr-TR' : (currentLang === 'en' ? 'en-US' : currentLang === 'ru' ? 'ru-RU' : currentLang === 'ar' ? 'ar-SA' : 'fr-FR');
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = 0; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            noteTextInput.value = transcript;
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Ses tanıma hatası:', event.error);
+            alert(translations[currentLang].alertError + ' ' + event.error);
+            stopListening();
+        };
+
+        recognition.onend = () => {
+            stopListening();
+        };
+    } else {
+        console.warn('Bu tarayıcı ses tanımayı desteklemiyor.');
+        speechBtn.disabled = true;
+        speechBtn.title = 'Tarayıcınız ses tanımayı desteklemiyor.';
+    }
+
+    function startListening() {
+        if (!recognition) return;
+        try {
+            recognition.start();
+            isListening = true;
+            speechBtn.textContent = translations[currentLang].listeningBtn;
+            speechBtn.classList.add('listening');
+        } catch (e) {}
+    }
+
+    function stopListening() {
+        if (recognition) {
+            try { recognition.stop(); } catch (e) {}
+        }
+        isListening = false;
+        speechBtn.textContent = translations[currentLang].speechBtn;
+        speechBtn.classList.remove('listening');
+    }
+
+    function openModal(source, time) {
+        pendingNoteSource = source;
+        pendingNoteTime = time;
+        noteTextInput.value = '';
+        modal.classList.add('active');
+        noteTextInput.focus();
+        translatePage(currentLang);
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+        pendingNoteSource = null;
+        pendingNoteTime = null;
+        if (isListening) stopListening();
+    }
+
+    modalSaveBtn.addEventListener('click', () => {
+        const text = noteTextInput.value.trim();
+        if (!text) { alert(translations[currentLang].alertNoteEmpty); return; }
+        if (pendingNoteSource && pendingNoteTime !== null) {
+            notes.push({ time: pendingNoteTime, text });
+            renderAllNotes();
+            closeModal();
+        } else {
+            alert(translations[currentLang].alertError);
+            closeModal();
+        }
+    });
+
+    modalCancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    speechBtn.addEventListener('click', () => {
+        if (!recognition) { alert('Speech recognition not supported'); return; }
+        if (isListening) stopListening(); else startListening();
+    });
+
+    // ----- DOM ELEMANLARI (süre inputları) -----
+    const noteDurationInput = document.getElementById('noteDuration');
+    const noteDurationFile = document.getElementById('noteDurationFile');
+    const noteDurationYt = document.getElementById('noteDurationYt');
+    const durationInputs = [noteDurationInput, noteDurationFile, noteDurationYt];
+    let globalDuration = 3;
+    durationInputs.forEach(inp => {
+        if (!inp) return;
+        inp.addEventListener('input', (e) => {
+            globalDuration = parseFloat(e.target.value) || 3;
+            durationInputs.forEach(other => { if (other && other !== e.target) other.value = globalDuration; });
+        });
+    });
+
+    const notesLists = {
+        camera: document.getElementById('notesList'),
+        file: document.getElementById('notesListFile'),
+        youtube: document.getElementById('notesListYt')
+    };
+    const noteCounts = {
+        camera: document.getElementById('noteCount'),
+        file: document.getElementById('noteCountFile'),
+        youtube: document.getElementById('noteCountYt')
+    };
+
+    // Silme butonları
+    document.getElementById('clearNotesBtn')?.addEventListener('click', clearNotes);
+    document.getElementById('clearNotesBtnFile')?.addEventListener('click', clearNotes);
+    document.getElementById('clearNotesBtnYt')?.addEventListener('click', clearNotes);
+
+    function clearNotes() {
+        if (notes.length && confirm(translations[currentLang].alertConfirmClearNotes)) {
+            notes = [];
+            renderAllNotes();
+        }
+    }
+
+    // Not ekleme butonları
+    document.getElementById('addNoteBtn')?.addEventListener('click', () => prepareAddNote('camera'));
+    document.getElementById('addNoteBtnFile')?.addEventListener('click', () => prepareAddNote('file'));
+    document.getElementById('addNoteBtnYt')?.addEventListener('click', () => prepareAddNote('youtube'));
+
+    // Bitir butonları
+    document.getElementById('finishBtn')?.addEventListener('click', () => finish('camera'));
+    document.getElementById('finishBtnFile')?.addEventListener('click', () => finish('file'));
+    document.getElementById('finishBtnYt')?.addEventListener('click', () => finish('youtube'));
+
+    // Tab geçişleri
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabs = {
+        camera: document.getElementById('cameraTab'),
+        file: document.getElementById('fileTab'),
+        youtube: document.getElementById('youtubeTab')
+    };
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            Object.values(tabs).forEach(t => t.classList.remove('active'));
+            tabs[tab].classList.add('active');
+            currentSource = tab;
+        });
+    });
+
+    // ----- YARDIMCI FONKSİYONLAR -----
+    function formatShortTime(sec) {
+        if (isNaN(sec)) return '0:00';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function escapeHtml(t) {
+        return t.replace(/[&<>"]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return '&quot;';
+        });
+    }
+
+    function renderAllNotes() {
+        const sorted = [...notes].sort((a, b) => a.time - b.time);
+        for (let key in notesLists) {
+            const ul = notesLists[key];
+            if (!ul) continue;
+            ul.innerHTML = '';
+            if (sorted.length === 0) {
+                ul.innerHTML = `<li style="color:#94a3b8; text-align:center;">${translations[currentLang].noNotesPlaceholder}</li>`;
+            } else {
+                sorted.forEach((n, i) => {
+                    const li = document.createElement('li');
+                    li.className = 'note-item';
+                    li.innerHTML = `<span class="note-time">${formatShortTime(n.time)}</span>
+                        <span class="note-text">${escapeHtml(n.text)}</span>
+                        <button class="delete-note" data-index="${i}">✖</button>`;
+                    ul.appendChild(li);
+                });
+            }
+        }
+        document.querySelectorAll('.delete-note').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = btn.dataset.index;
+                if (idx !== undefined) {
+                    notes.splice(idx, 1);
+                    renderAllNotes();
+                }
+            });
+        });
+        for (let key in noteCounts) {
+            if (noteCounts[key]) noteCounts[key].innerText = notes.length;
+        }
+    }
+
+    function prepareAddNote(source) {
+        let time;
+        if (source === 'camera') {
+            const vid = document.getElementById('recordedVideo');
+            if (!vid || !vid.src) { alert(translations[currentLang].alertRecVideoNotFound); return; }
+            time = vid.currentTime;
+        } else if (source === 'file') {
+            const vid = document.getElementById('recordedVideoFile');
+            if (!vid || !vid.src) { alert(translations[currentLang].alertFileNotFound); return; }
+            time = vid.currentTime;
+        } else if (source === 'youtube') {
+            if (!youtubePlayer) { alert(translations[currentLang].alertYoutubeNotFound); return; }
+            time = youtubePlayer.getCurrentTime();
+        }
+        if (time === undefined || isNaN(time) || time < 0) { alert(translations[currentLang].alertTimeError); return; }
+        openModal(source, time);
+    }
+
+    // ----- KAMERA (TOGGLE KAYIT) -----
+    const liveVideo = document.getElementById('liveCamera');
+    const toggleBtn = document.getElementById('recordToggleBtn');
+    const recordedVideo = document.getElementById('recordedVideo');
+    const clearRecordedBtn = document.getElementById('clearRecordedBtn');
+
+    async function initCamera() {
+        try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            liveVideo.srcObject = mediaStream;
+        } catch (err) {
+            alert(translations[currentLang].alertNoCamera + err.message);
+        }
+    }
+    initCamera();
+
+    toggleBtn.addEventListener('click', () => {
+        if (!mediaStream) { alert(translations[currentLang].alertNoStream); return; }
+
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+            recordedChunks = [];
+            try {
+                mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm' });
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    recordedBlob = new Blob(recordedChunks, { type: 'video/webm' });
+                    if (recordedVideoURL) URL.revokeObjectURL(recordedVideoURL);
+                    recordedVideoURL = URL.createObjectURL(recordedBlob);
+                    recordedVideo.src = recordedVideoURL;
+                    toggleBtn.textContent = translations[currentLang].recordToggleStart;
+                    toggleBtn.classList.remove('warning');
+                    toggleBtn.classList.add('primary');
+                    translatePage(currentLang);
+                };
+                mediaRecorder.start();
+                toggleBtn.textContent = translations[currentLang].recordToggleStop;
+                toggleBtn.classList.remove('primary');
+                toggleBtn.classList.add('warning');
+                if (notes.length && !confirm(translations[currentLang].alertNewRecordClear)) {}
+                else { notes = []; renderAllNotes(); }
+            } catch (e) { alert(translations[currentLang].alertError + e); }
+        } else {
+            if (mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        }
+    });
+
+    clearRecordedBtn.addEventListener('click', () => {
+        if (recordedVideoURL) {
+            URL.revokeObjectURL(recordedVideoURL);
+            recordedVideoURL = null;
+        }
+        recordedVideo.src = '';
+        recordedBlob = null;
+    });
+
+    // ----- DOSYA YÜKLE -----
+    const fileInput = document.getElementById('fileUpload');
+    const loadFileBtn = document.getElementById('loadFileBtn');
+    loadFileBtn.addEventListener('click', () => {
+        const file = fileInput.files[0];
+        if (!file) { alert(translations[currentLang].alertSelectFile); return; }
+        uploadedFileName = file.name;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            uploadedFileBlob = new Blob([e.target.result], { type: file.type });
+            const url = URL.createObjectURL(uploadedFileBlob);
+            document.getElementById('recordedVideoFile').src = url;
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // ----- YOUTUBE -----
+    const youtubeInput = document.getElementById('youtubeInput');
+    const loadYoutubeBtn = document.getElementById('loadYoutubeBtn');
+
+    function extractVideoId(input) {
+        input = input.trim();
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?#]+)/,
+            /^([a-zA-Z0-9_-]{11})$/
+        ];
+        for (let pattern of patterns) {
+            const match = input.match(pattern);
+            if (match && match[1]) return match[1];
+        }
+        if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+        return null;
+    }
+
+    loadYoutubeBtn.addEventListener('click', () => {
+        const raw = youtubeInput.value;
+        const videoId = extractVideoId(raw);
+        if (!videoId) {
+            alert(translations[currentLang].alertValidYoutubeId);
+            return;
+        }
+
+        const container = document.getElementById('youtubeContainerYt');
+        container.innerHTML = '';
+
+        try {
+            youtubePlayer = new YT.Player('youtubeContainerYt', {
+                videoId: videoId,
+                events: {
+                    onReady: (e) => console.log('YouTube hazır'),
+                    onError: (e) => {
+                        let msg = translations[currentLang].alertError + ' YouTube: ';
+                        switch (e.data) {
+                            case 2: msg += 'Geçersiz video ID'; break;
+                            case 5: msg += 'HTML5 player hatası'; break;
+                            case 100: msg += 'Video bulunamadı veya silinmiş'; break;
+                            case 101: msg += 'Video embed edilemez'; break;
+                            default: msg += 'Bilinmeyen hata';
+                        }
+                        alert(msg);
+                    }
+                }
+            });
+        } catch (err) {
+            alert(translations[currentLang].alertError + err.message);
+        }
+    });
+
+    // ----- VTT OLUŞTURMA VE ZİP -----
+    function formatVTTTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds - Math.floor(seconds)) * 1000);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+    }
+
+    async function finish(source) {
+        const defaultDuration = globalDuration || 3;
+        const sorted = [...notes].sort((a, b) => a.time - b.time);
+        let vtt = 'WEBVTT\n\n';
+        for (let i = 0; i < sorted.length; i++) {
+            const note = sorted[i];
+            const start = note.time;
+            let end;
+            if (i < sorted.length - 1) {
+                end = Math.min(start + defaultDuration, sorted[i + 1].time);
+            } else end = start + defaultDuration;
+            if (end <= start) end = start + 0.2;
+            vtt += `${i + 1}\n${formatVTTTime(start)} --> ${formatVTTTime(end)}\n${note.text}\n\n`;
+        }
+
+        const zip = new JSZip();
+        zip.file('altyazi.vtt', vtt);
+
+        if (source === 'camera' && recordedBlob) {
+            zip.file('kayit.webm', recordedBlob);
+        } else if (source === 'file' && uploadedFileBlob) {
+            zip.file(uploadedFileName, uploadedFileBlob);
+        } else if (source === 'youtube') {
+            alert(translations[currentLang].alertYoutubeNoVideo);
+        } else {
+            alert(translations[currentLang].alertNoVideoBlob);
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `notlar_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Temizlik
+    window.addEventListener('beforeunload', () => {
+        if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+        if (recordedVideoURL) URL.revokeObjectURL(recordedVideoURL);
+    });
+
+    // İlk çeviriyi yap (seçilen dil ile)
+    translatePage(currentLang);
+})();
+</script>
+</body>
+</html>
