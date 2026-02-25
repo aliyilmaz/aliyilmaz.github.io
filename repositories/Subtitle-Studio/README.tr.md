@@ -60,8 +60,8 @@ Doğrudan ``index.html`` dosyasını tarayıcıda açarak da çalıştırabilirs
 ### Canlı Yayın Sekmesi
 1. Kamera seçici butonuna (📷) tıklayarak kullanmak istediğiniz kamerayı seçin.
 2. "Kaydet" butonuna basarak kaydı başlatın.
-3. Kayıt sırasında "Not Ekle" butonu ile anlık notlar ekleyin.
-4. Kaydı durdurun, kaydedilen videoyu izleyin.
+3. Kaydı durdurun, kaydedilen videoyu izleyin.
+4. Videoyu izlerken "Not Ekle" butonu ile anlık notlar ekleyin.
 5. "Bitir & ZIP indir" ile video ve altyazıyı arşivleyin.
 
 ### Dosya Yükle Sekmesi

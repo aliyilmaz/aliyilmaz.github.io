@@ -59,8 +59,8 @@ You can also run it by directly opening the `index.html` file in the browser (ho
 ### Live Streaming Tab
 1. Select the camera you want to use by clicking the camera selector button (📷).
 2. Start recording by pressing the "Record" button.
-3. Add instant notes during recording using the "Add Note" button.
-4. Stop recording and watch the recorded video.
+3. Stop recording, watch the recorded video.
+4. Add instant notes while watching the video with the "Add Notes" button.
 5. Archive the video and subtitles with "Finish & Download ZIP".
 
 ### File Upload Tab

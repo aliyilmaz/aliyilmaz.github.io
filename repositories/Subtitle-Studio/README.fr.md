@@ -84,9 +84,9 @@ Vous pouvez également l'exécuter en ouvrant directement le fichier `index.html
 
 2. Démarrez l'enregistrement en appuyant sur le bouton « Enregistrer ».
 
-3. Ajoutez des notes instantanées pendant l'enregistrement à l'aide du bouton « Ajouter une note ».
+3. Arrêtez l'enregistrement, regardez la vidéo enregistrée.
 
-4. Arrêtez l'enregistrement et regardez la vidéo enregistrée.
+4. Ajoutez des notes instantanées tout en regardant la vidéo avec le bouton "Ajouter des notes".
 
 5. Archivez la vidéo et les sous-titres avec « Terminer et télécharger le fichier ZIP ».
 

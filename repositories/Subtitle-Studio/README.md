@@ -78,8 +78,8 @@ and microphone permissions).
 1.  Click the camera selector button (📷) to choose the camera you want
     to use.
 2.  Press the "Record" button to start recording.
-3.  During recording, add real-time notes using the "Add Note" button.
-4.  Stop the recording and watch the recorded video.
+3.  Stop recording, watch the recorded video.
+4.  Add instant notes while watching the video with the "Add Notes" button.
 5.  Use "Finish & Download ZIP" to archive the video and subtitles.
 
 ### Upload File Tab
