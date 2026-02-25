@@ -128,6 +128,7 @@
             overflow: hidden;
             aspect-ratio: 16/9;
             width: 100%;
+            position: relative;
         }
         .live-container {
             background: #0f172a;
@@ -135,6 +136,7 @@
             overflow: hidden;
             aspect-ratio: 16/9;
             width: 100%;
+            position: relative;
         }
         #cameraTab .live-container,
         #cameraTab .player-container {
@@ -159,6 +161,164 @@
             height: 100%;
             border: none;
         }
+        
+        /* KAMERA SEÇİM DROPDOWN'U - Mobil için optimize edildi */
+        .camera-selector {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 20;
+        }
+
+        .camera-selector-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid white;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            backdrop-filter: blur(5px);
+        }
+
+        .camera-selector-btn:hover {
+            background: rgba(59, 130, 246, 0.8);
+            transform: scale(1.05);
+        }
+
+        .camera-selector-btn.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            cursor: not-allowed;
+            background: rgba(100, 100, 100, 0.6);
+        }
+
+        .camera-selector-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* KAYDIRMA ÇUBUKLU DROPDOWN */
+        .camera-dropdown {
+            position: absolute;
+            bottom: 50px;
+            right: 0;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+            width: 260px;
+            max-height: 100px !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.98);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .camera-dropdown::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .camera-dropdown::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .camera-dropdown::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .camera-dropdown.show {
+            display: block;
+            animation: fadeIn 0.15s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .camera-option {
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+            color: #1e293b;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .camera-option:last-child {
+            border-bottom: none;
+        }
+
+        .camera-option:hover {
+            background: #f8fafc;
+        }
+
+        .camera-option.selected {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .camera-option.selected svg {
+            fill: white;
+        }
+
+        .camera-option svg {
+            width: 16px;
+            height: 16px;
+            fill: #64748b;
+            flex-shrink: 0;
+        }
+
+        .camera-option .camera-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 13px;
+        }
+
+        .camera-option .camera-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #e2e8f0;
+            color: #475569;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .camera-option.selected .camera-badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .no-cameras-message {
+            padding: 16px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        
         .section-header {
             display: flex;
             justify-content: space-between;
@@ -167,6 +327,7 @@
         }
         .section-header h3 {
             margin: 0;
+            font-size: 1.1rem;
         }
         button {
             background: #f1f4f9;
@@ -199,6 +360,7 @@
             background: #eef2f6;
             padding: 0.3rem 1rem;
             border-radius: 3rem;
+            font-size: 0.9rem;
         }
         .duration-control input {
             width: 70px;
@@ -346,6 +508,20 @@
             .section-header { flex-wrap: wrap; gap: 0.5rem; }
             .header { flex-direction: column; align-items: stretch; }
             .tabs { justify-content: center; }
+            
+            .camera-dropdown {
+                width: 240px;
+                max-height: 200px;
+            }
+            
+            .camera-option {
+                padding: 8px 10px;
+            }
+            
+            .camera-selector-btn {
+                width: 40px;
+                height: 40px;
+            }
         }
     </style>
 </head>
@@ -353,7 +529,7 @@
 <div class="container">
     <!-- Üst satır: sekmeler ve dil seçici yan yana -->
     <div class="header">
-        <!-- Sekmeler (artık header içinde) -->
+        <!-- Sekmeler -->
         <div class="tabs" id="tabContainer">
             <button class="tab-btn active" data-tab="camera" id="tabCamera">📸 Canlı Yayın</button>
             <button class="tab-btn" data-tab="file" id="tabFile">📁 Dosya Yükle</button>
@@ -382,6 +558,18 @@
                 </div>
                 <div class="live-container">
                     <video id="liveCamera" autoplay playsinline muted></video>
+                    
+                    <!-- KAMERA SEÇİCİ DROPDOWN -->
+                    <div class="camera-selector">
+                        <div class="camera-selector-btn" id="cameraSelectorBtn" title="Kamera seç">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 14H4V7h4.05l1.83-2h4.24L16.05 7H20v12zM12 9c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z"/>
+                            </svg>
+                        </div>
+                        <div class="camera-dropdown" id="cameraDropdown">
+                            <div class="no-cameras-message">Kameralar yükleniyor...</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="section-header" style="margin-top: 0.5rem;">
                     <h3 id="recordedVideoTitle">🎥 Kaydedilen Video</h3>
@@ -394,7 +582,7 @@
             <div class="notes-area">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3 id="notesTitle">📌 Notlar (<span id="noteCount">0</span>)</h3>
-                    <button id="clearNotesBtn" style="background:#e9eef5;" id="clearNotesBtnText">🧹 Temizle</button>
+                    <button id="clearNotesBtn" style="background:#e9eef5;">🧹 Temizle</button>
                 </div>
                 <div class="duration-control">
                     <span id="durationLabel">⏱️ Süre:</span>
@@ -417,7 +605,7 @@
     <div id="fileTab" class="tab-content">
         <div class="file-input">
             <input type="file" id="fileUpload" accept="video/*">
-            <button id="loadFileBtn" id="loadFileBtnText">📂 Yükle ve Oynat</button>
+            <button id="loadFileBtn">📂 Yükle ve Oynat</button>
         </div>
         <div class="split-panel">
             <div class="video-area">
@@ -429,7 +617,7 @@
             <div class="notes-area">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3 id="notesTitleFile">📌 Notlar (<span id="noteCountFile">0</span>)</h3>
-                    <button id="clearNotesBtnFile" style="background:#e9eef5;" id="clearNotesBtnFileText">🧹 Temizle</button>
+                    <button id="clearNotesBtnFile" style="background:#e9eef5;">🧹 Temizle</button>
                 </div>
                 <div class="duration-control">
                     <span id="durationLabelFile">⏱️ Süre:</span>
@@ -452,7 +640,7 @@
     <div id="youtubeTab" class="tab-content">
         <div class="youtube-input">
             <input type="text" id="youtubeInput" placeholder="Video ID veya link (ör: dQw4w9WgXcQ)">
-            <button id="loadYoutubeBtn" id="loadYoutubeBtnText">▶️ Yükle</button>
+            <button id="loadYoutubeBtn">▶️ Yükle</button>
         </div>
         <div class="split-panel">
             <div class="video-area">
@@ -464,7 +652,7 @@
             <div class="notes-area">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3 id="notesTitleYt">📌 Notlar (<span id="noteCountYt">0</span>)</h3>
-                    <button id="clearNotesBtnYt" style="background:#e9eef5;" id="clearNotesBtnYtText">🧹 Temizle</button>
+                    <button id="clearNotesBtnYt" style="background:#e9eef5;">🧹 Temizle</button>
                 </div>
                 <div class="duration-control">
                     <span id="durationLabelYt">⏱️ Süre:</span>
@@ -492,8 +680,8 @@
         <div style="display: flex; gap: 0.8rem; align-items: center;">
             <button id="speechBtn" class="speech-btn">🎤 Sesle Yaz</button>
             <div style="flex:1"></div>
-            <button id="modalCancelBtn" id="modalCancelBtnText">İptal</button>
-            <button id="modalSaveBtn" class="primary" id="modalSaveBtnText">Kaydet</button>
+            <button id="modalCancelBtn">İptal</button>
+            <button id="modalSaveBtn" class="primary">Kaydet</button>
         </div>
     </div>
 </div>
@@ -531,6 +719,14 @@
             listeningBtn: "⏹️ Dinliyor...",
             modalCancel: "İptal",
             modalSave: "Kaydet",
+            // Kamera seçici çevirileri
+            cameraSelectTitle: "Kamera seç",
+            cameraSelectDisabled: "Kayıt sırasında kamera değişmez",
+            loadingCameras: "Kameralar yükleniyor...",
+            noCamerasFound: "Kamera bulunamadı",
+            frontCamera: "Ön",
+            backCamera: "Arka",
+            externalCamera: "Harici",
             // Uyarı mesajları
             alertNoCamera: "Kamera/mikrofon izni gerekli: ",
             alertNoStream: "Kamera akışı yok",
@@ -576,6 +772,14 @@
             listeningBtn: "⏹️ Listening...",
             modalCancel: "Cancel",
             modalSave: "Save",
+            // Camera selector translations
+            cameraSelectTitle: "Select camera",
+            cameraSelectDisabled: "Cannot switch while recording",
+            loadingCameras: "Loading cameras...",
+            noCamerasFound: "No cameras found",
+            frontCamera: "Front",
+            backCamera: "Back",
+            externalCamera: "External",
             // Alert messages
             alertNoCamera: "Camera/microphone permission required: ",
             alertNoStream: "No camera stream",
@@ -621,6 +825,13 @@
             listeningBtn: "⏹️ Слушаю...",
             modalCancel: "Отмена",
             modalSave: "Сохранить",
+            cameraSelectTitle: "Выбрать камеру",
+            cameraSelectDisabled: "Нельзя сменить во время записи",
+            loadingCameras: "Загрузка камер...",
+            noCamerasFound: "Камеры не найдены",
+            frontCamera: "Передняя",
+            backCamera: "Задняя",
+            externalCamera: "Внешняя",
             // Alert messages
             alertNoCamera: "Требуется разрешение камеры/микрофона: ",
             alertNoStream: "Нет потока камеры",
@@ -666,6 +877,13 @@
             listeningBtn: "⏹️ استماع...",
             modalCancel: "إلغاء",
             modalSave: "حفظ",
+            cameraSelectTitle: "اختر الكاميرا",
+            cameraSelectDisabled: "لا يمكن التبديل أثناء التسجيل",
+            loadingCameras: "جاري تحميل الكاميرات...",
+            noCamerasFound: "لم يتم العثور على كاميرات",
+            frontCamera: "أمامية",
+            backCamera: "خلفية",
+            externalCamera: "خارجية",
             // Alert messages
             alertNoCamera: "إذن الكاميرا/الميكروفون مطلوب: ",
             alertNoStream: "لا يوجد بث كاميرا",
@@ -711,6 +929,13 @@
             listeningBtn: "⏹️ Écoute...",
             modalCancel: "Annuler",
             modalSave: "Enregistrer",
+            cameraSelectTitle: "Choisir la caméra",
+            cameraSelectDisabled: "Impossible de changer pendant l'enregistrement",
+            loadingCameras: "Chargement des caméras...",
+            noCamerasFound: "Aucune caméra trouvée",
+            frontCamera: "Avant",
+            backCamera: "Arrière",
+            externalCamera: "Externe",
             // Alert messages
             alertNoCamera: "Autorisation caméra/micro requise : ",
             alertNoStream: "Pas de flux caméra",
@@ -778,6 +1003,7 @@
         noNotesPlaceholderYt: document.getElementById('noNotesPlaceholderYt'),
         footerInfoYt: document.getElementById('footerInfoYt'),
         langLabel: document.getElementById('lang-label'),
+        cameraSelectorBtn: document.getElementById('cameraSelectorBtn'),
     };
 
     // Çeviri fonksiyonu
@@ -790,7 +1016,7 @@
         if (elements.tabYoutube) elements.tabYoutube.textContent = t.tabYoutube;
         if (elements.cameraLiveTitle) elements.cameraLiveTitle.textContent = t.cameraLiveTitle;
         if (elements.recordToggleBtn) {
-            if (elements.recordToggleBtn.classList.contains('warning')) {
+            if (isRecording) {
                 elements.recordToggleBtn.textContent = t.recordToggleStop;
             } else {
                 elements.recordToggleBtn.textContent = t.recordToggleStart;
@@ -827,6 +1053,9 @@
         }
         if (elements.modalCancelBtn) elements.modalCancelBtn.textContent = t.modalCancel;
         if (elements.modalSaveBtn) elements.modalSaveBtn.textContent = t.modalSave;
+        if (elements.cameraSelectorBtn) {
+            elements.cameraSelectorBtn.title = isRecording ? t.cameraSelectDisabled : t.cameraSelectTitle;
+        }
 
         // Diğer sekme notları
         if (elements.notesTitleFile) {
@@ -856,6 +1085,8 @@
         if (elements.footerInfoYt) elements.footerInfoYt.textContent = t.footerInfoYt;
 
         if (elements.langLabel) elements.langLabel.textContent = '🌐 ' + (lang === 'tr' ? 'Dil' : lang === 'en' ? 'Language' : lang === 'ru' ? 'Язык' : lang === 'ar' ? 'اللغة' : 'Langue') + ':';
+        
+        updateCameraDropdown(); // Kamera dropdown'unu güncelle
     }
 
     // Dil değiştir
@@ -893,6 +1124,7 @@
     // ----- ORTAK DEĞİŞKENLER -----
     let notes = [];
     let currentSource = 'camera';
+    let isRecording = false;
 
     // Canlı kayıt
     let mediaStream = null;
@@ -900,6 +1132,10 @@
     let recordedChunks = [];
     let recordedBlob = null;
     let recordedVideoURL = null;
+
+    // Kamera seçici için değişkenler
+    let availableCameras = [];
+    let currentCameraId = null;
 
     // Dosya yükleme
     let uploadedFileBlob = null;
@@ -1141,22 +1377,139 @@
         openModal(source, time);
     }
 
-    // ----- KAMERA (TOGGLE KAYIT) -----
+    // ----- KAMERA SEÇİCİ FONKSİYONLARI -----
     const liveVideo = document.getElementById('liveCamera');
+    const cameraSelectorBtn = document.getElementById('cameraSelectorBtn');
+    const cameraDropdown = document.getElementById('cameraDropdown');
     const toggleBtn = document.getElementById('recordToggleBtn');
     const recordedVideo = document.getElementById('recordedVideo');
     const clearRecordedBtn = document.getElementById('clearRecordedBtn');
 
-    async function initCamera() {
+    // Kamera listesini al
+    async function getAvailableCameras() {
         try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            cameraDropdown.innerHTML = `<div class="no-cameras-message">${translations[currentLang].loadingCameras}</div>`;
+            
+            // Geçici bir stream alarak izin istemi yap
+            const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            tempStream.getTracks().forEach(track => track.stop());
+            
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            availableCameras = devices.filter(device => device.kind === 'videoinput');
+            updateCameraDropdown();
+            
+        } catch (err) {
+            cameraDropdown.innerHTML = `<div class="no-cameras-message">${translations[currentLang].alertNoCamera}</div>`;
+        }
+    }
+
+    // Dropdown'u güncelle
+    function updateCameraDropdown() {
+        if (availableCameras.length === 0) {
+            cameraDropdown.innerHTML = `<div class="no-cameras-message">${translations[currentLang].noCamerasFound}</div>`;
+            return;
+        }
+        
+        let html = '';
+        availableCameras.forEach((camera, index) => {
+            let cameraName = camera.label || `Kamera ${index + 1}`;
+            let badge = '';
+            const t = translations[currentLang];
+            
+            if (cameraName.toLowerCase().includes('front') || cameraName.toLowerCase().includes('ön')) {
+                badge = `<span class="camera-badge">${t.frontCamera}</span>`;
+            } else if (cameraName.toLowerCase().includes('back') || cameraName.toLowerCase().includes('arka')) {
+                badge = `<span class="camera-badge">${t.backCamera}</span>`;
+            } else if (cameraName.includes('USB') || cameraName.includes('HD') || cameraName.includes('external')) {
+                badge = `<span class="camera-badge">${t.externalCamera}</span>`;
+            }
+            
+            const isSelected = (currentCameraId === camera.deviceId) || (!currentCameraId && index === 0);
+            
+            html += `
+                <div class="camera-option ${isSelected ? 'selected' : ''}" data-device-id="${camera.deviceId}">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 14H4V7h4.05l1.83-2h4.24L16.05 7H20v12zM12 9c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z"/>
+                    </svg>
+                    <span class="camera-name">${cameraName}</span>
+                    ${badge}
+                </div>
+            `;
+        });
+        
+        cameraDropdown.innerHTML = html;
+        
+        document.querySelectorAll('.camera-option').forEach(option => {
+            option.addEventListener('click', async () => {
+                if (isRecording) {
+                    alert(translations[currentLang].cameraSelectDisabled);
+                    return;
+                }
+                const deviceId = option.dataset.deviceId;
+                await switchToCamera(deviceId);
+                cameraDropdown.classList.remove('show');
+            });
+        });
+    }
+
+    // Kameraya geçiş
+    async function switchToCamera(deviceId) {
+        try {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: { deviceId: { exact: deviceId } },
+                audio: true
+            };
+            
+            mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
             liveVideo.srcObject = mediaStream;
+            currentCameraId = deviceId;
+            
+            // Kayıt varsa durdur
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            mediaRecorder = null;
+            
+            updateCameraDropdown();
+            
         } catch (err) {
             alert(translations[currentLang].alertNoCamera + err.message);
         }
     }
-    initCamera();
 
+    // İlk kamerayı başlat
+    async function initFirstCamera() {
+        await getAvailableCameras();
+        if (availableCameras.length > 0) {
+            await switchToCamera(availableCameras[0].deviceId);
+        }
+    }
+
+    // Dropdown aç/kapat
+    cameraSelectorBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isRecording) {
+            alert(translations[currentLang].cameraSelectDisabled);
+            return;
+        }
+        cameraDropdown.classList.toggle('show');
+    });
+
+    // Dışarı tıklandığında kapat
+    document.addEventListener('click', (e) => {
+        if (!cameraSelectorBtn.contains(e.target) && !cameraDropdown.contains(e.target)) {
+            cameraDropdown.classList.remove('show');
+        }
+    });
+
+    // Kamera başlat
+    initFirstCamera();
+
+    // ----- KAMERA KAYIT -----
     toggleBtn.addEventListener('click', () => {
         if (!mediaStream) { alert(translations[currentLang].alertNoStream); return; }
 
@@ -1170,15 +1523,17 @@
                     if (recordedVideoURL) URL.revokeObjectURL(recordedVideoURL);
                     recordedVideoURL = URL.createObjectURL(recordedBlob);
                     recordedVideo.src = recordedVideoURL;
-                    toggleBtn.textContent = translations[currentLang].recordToggleStart;
-                    toggleBtn.classList.remove('warning');
-                    toggleBtn.classList.add('primary');
+                    
+                    isRecording = false;
                     translatePage(currentLang);
+                    cameraSelectorBtn.classList.remove('disabled');
                 };
                 mediaRecorder.start();
-                toggleBtn.textContent = translations[currentLang].recordToggleStop;
-                toggleBtn.classList.remove('primary');
-                toggleBtn.classList.add('warning');
+                
+                isRecording = true;
+                translatePage(currentLang);
+                cameraSelectorBtn.classList.add('disabled');
+                
                 if (notes.length && !confirm(translations[currentLang].alertNewRecordClear)) {}
                 else { notes = []; renderAllNotes(); }
             } catch (e) { alert(translations[currentLang].alertError + e); }
