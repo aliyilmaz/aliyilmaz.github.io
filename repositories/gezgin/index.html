@@ -604,6 +604,16 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+            
+            /* Mobilde tutanak kartı düzenlemeleri */
+            #minutesTab .note-card {
+                padding: 0.75rem;
+            }
+            
+            #minutesList {
+                max-height: none !important;
+                overflow-y: visible !important;
+            }
         }
 
         .pdf-icon {
@@ -623,6 +633,26 @@
             opacity: 1;
             background: #f1f5f9;
             color: #dc2626;
+        }
+
+                /* Tutanak başlık satırı için */
+        .minute-title-row {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .minute-title-text {
+            display: inline;
+            font-weight: 500;
+            word-break: break-word;
+        }
+        
+        .minute-title-icons {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-left: 0.5rem;
+            vertical-align: middle;
         }
 
         .reading-icon {
@@ -936,13 +966,9 @@
 
                     <!-- İLETİŞİM -->
                     <div class="tab-pane fade" id="contactTab">
-                        <div class="contact-box">
-                            <div class="d-flex gap-2 align-items-center mb-2"><i class="bi bi-headset fs-5"></i> <strong
-                                    data-i18n="contact_title">Cankurtaran Destek</strong></div>
+                        <div class="contact-box">                            
                             <p class="mb-1 small">📞 +90 212 555 44 33</p>
-                            <p class="mb-0 small">✉️ destek@cankurtaran.com</p>
-                            <hr>
-                            <p class="small text-muted mb-0" data-i18n="support_hours">7/7 acil destek hattı</p>
+                            <p class="mb-0 small">✉️ destek@cankurtaran.com</p>                            
                         </div>
                     </div>
                 </div>
@@ -1152,7 +1178,7 @@
 
     <!-- Settings Modal -->
     <div class="modal fade" id="settingsModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content modal-minimal">
                 <div class="modal-header border-0 pb-0">
                     <h6 class="modal-title fw-semibold"><i class="bi bi-gear"></i> <span
@@ -1172,6 +1198,9 @@
                                 data-bs-target=".translationsTab" style="padding: 0.4rem 0.8rem;"><i
                                     class="bi bi-translate"></i> <span
                                     data-i18n="global_translations_tab">Çeviriler</span></button></li>
+                        <li class="nav-item"><button class="nav-link btn-sm" data-bs-toggle="tab"
+                                data-bs-target="#contactSettingsTab" style="padding: 0.4rem 0.8rem;"><i
+                                    class="bi bi-envelope"></i> <span data-i18n="contact_settings_tab">İletişim</span></button></li>
                         <li class="nav-item"><button class="nav-link btn-sm" data-bs-toggle="tab"
                                 data-bs-target="#backupTab" style="padding: 0.4rem 0.8rem;"><i
                                     class="bi bi-cloud-arrow-up"></i> <span
@@ -1199,6 +1228,42 @@
                             <div id="tagsListContainer" class="mb-2"></div>
                             <div class="small text-muted" data-i18n="tag_warning">Her etiket için tüm dillerde çeviri
                                 ekleyebilirsiniz. "Çeviriler" butonu ile düzenleyin.</div>
+                        </div>
+                        <!-- İletişim Tab -->
+                        <div class="tab-pane fade" id="contactSettingsTab">
+                            <div class="row">
+                                <div class="col-md-5 border-end">
+                                    <h6 class="fw-semibold mb-3"><i class="bi bi-plus-circle"></i> <span id="contactFormTitleText">Yeni İçerik Ekle</span></h6>
+                                    <div class="mb-3">
+                                        <label for="contactLangSelect" class="form-label small fw-semibold" id="contactLangLabel">Dil</label>
+                                        <select class="form-select form-select-sm" id="contactLangSelect">
+                                            <option value="tr">🇹🇷 Türkçe</option>
+                                            <option value="en">🇬🇧 English</option>
+                                            <option value="ru">🇷🇺 Русский</option>
+                                            <option value="de">🇩🇪 Deutsch</option>
+                                            <option value="fr">🇫🇷 Français</option>
+                                            <option value="ar">🇸🇦 العربية</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="contactContentInput" class="form-label small fw-semibold" id="contactContentLabel">İçerik</label>
+                                        <textarea class="form-control form-control-sm" id="contactContentInput" rows="6" placeholder="İletişim bilgilerini buraya yazın..."></textarea>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-primary-minimal btn-sm flex-grow-1" id="addContactContentBtn">
+                                            <i class="bi bi-save"></i> <span id="contactSaveBtnText">Kaydet</span>
+                                        </button>
+                                        <button class="btn btn-outline-minimal btn-sm" id="cancelContactEditBtn" style="display: none;">
+                                            <i class="bi bi-x"></i> <span id="contactCancelBtnText">İptal</span>
+                                        </button>
+                                    </div>
+                                    <input type="hidden" id="editingContactLang">
+                                </div>
+                                <div class="col-md-7">
+                                    <h6 class="fw-semibold mb-3"><i class="bi bi-list-ul"></i> <span id="contactExistingTranslationsText">Mevcut Çeviriler</span></h6>
+                                    <div id="contactTranslationsListContainer" class="translation-list" style="max-height: 350px; overflow-y: auto;"></div>
+                                </div>
+                            </div>
                         </div>
                         <!-- Yedekleme Tab -->
                         <div class="tab-pane fade" id="backupTab">
@@ -1525,10 +1590,10 @@
         const translations = {
             tr: {
                 app_name_label: "Uygulama Adı",
+                contact_settings_tab: "İletişim",
                 tab_notes: "Notlar", tab_lessons: "İfadeler", tab_minutes: "Tutanaklar", tab_contact: "İletişim",
                 add_note_btn: "Ekle", add_phrase: "Ekle", select_location: "Görev Yeri", minutes_header: "Tutanaklar",
-                add_sample: "Örnek", contact_title: "Cankurtaran Destek", support_hours: "7/7 acil destek hattı",
-                settings_title: "Ayarlar", locations_tab: "Görev Yerleri", tags_tab: "Etiketler", add_btn: "Ekle",
+                add_sample: "Örnek", settings_title: "Ayarlar", locations_tab: "Görev Yerleri", tags_tab: "Etiketler", add_btn: "Ekle",
                 location_warning: "Her görev yeri için tüm dillerde çeviri ekleyebilirsiniz. 'Çeviriler' butonu ile düzenleyin.",
                 tag_warning: "Her etiket için tüm dillerde çeviri ekleyebilirsiniz. 'Çeviriler' butonu ile düzenleyin.",
                 filter_btn: "Filtrele", filter_tags_title: "Etiketlere Göre Filtrele",
@@ -1607,14 +1672,19 @@
                 no_readings: "Henüz okunuş eklenmemiş",
                 original_text: "Orijinal Metin",
                 reading_text_placeholder: "Örn: help (help)",
-                reading_help_text: "Okunuşu fonetik olarak yazın"
+                reading_help_text: "Okunuşu fonetik olarak yazın",
+                contact_content_label: "İletişim İçeriği",
+                contact_lang_label: "Dil",
+                contact_content_placeholder: "İletişim bilgilerini buraya yazın...",
+                contact_existing_translations: "Mevcut Çeviriler",
+                contact_translation_item: "çeviri"
             },
-                        en: {
+            en: {
                 app_name_label: "Application Name",
+                contact_settings_tab: "Contact",
                 tab_notes: "Notes", tab_lessons: "Phrases", tab_minutes: "Minutes", tab_contact: "Contact",
                 add_note_btn: "Add", add_phrase: "Add", select_location: "Location", minutes_header: "Minutes",
-                add_sample: "Sample", contact_title: "Cankurtaran Support", support_hours: "24/7 emergency support",
-                settings_title: "Settings", locations_tab: "Work Locations", tags_tab: "Tags", add_btn: "Add",
+                add_sample: "Sample", settings_title: "Settings", locations_tab: "Work Locations", tags_tab: "Tags", add_btn: "Add",
                 location_warning: "You can add translations for each location in all languages. Use 'Translations' button.",
                 tag_warning: "You can add translations for each tag in all languages. Use 'Translations' button.",
                 filter_btn: "Filter", filter_tags_title: "Filter by Tags",
@@ -1693,14 +1763,19 @@
                 no_readings: "No readings added yet",
                 original_text: "Original Text",
                 reading_text_placeholder: "e.g. help (help)",
-                reading_help_text: "Write the pronunciation phonetically"
+                reading_help_text: "Write the pronunciation phonetically",
+                contact_content_label: "Contact Content",
+                contact_lang_label: "Language",
+                contact_content_placeholder: "Write contact information here...",
+                contact_existing_translations: "Existing Translations",
+                contact_translation_item: "translation"
             },
             ru: {
                 app_name_label: "Название приложения",
+                contact_settings_tab: "Контакты",
                 tab_notes: "Заметки", tab_lessons: "Фразы", tab_minutes: "Протоколы", tab_contact: "Контакты",
                 add_note_btn: "Добавить", add_phrase: "Добавить", select_location: "Локация", minutes_header: "Протоколы",
-                add_sample: "Пример", contact_title: "Поддержка", support_hours: "Круглосуточная поддержка",
-                settings_title: "Настройки", locations_tab: "Локации", tags_tab: "Теги", add_btn: "Добавить",
+                add_sample: "Пример", settings_title: "Настройки", locations_tab: "Локации", tags_tab: "Теги", add_btn: "Добавить",
                 location_warning: "Вы можете добавить переводы для каждой локации на всех языках.",
                 tag_warning: "Вы можете добавить переводы для каждого тега на всех языках.",
                 filter_btn: "Фильтр", filter_tags_title: "Фильтр по тегам",
@@ -1779,14 +1854,19 @@
                 no_readings: "Произношения ещё не добавлены",
                 original_text: "Исходный текст",
                 reading_text_placeholder: "Напр: help (хелп)",
-                reading_help_text: "Напишите произношение фонетически"
+                reading_help_text: "Напишите произношение фонетически",
+                contact_content_label: "Содержание контакта",
+                contact_lang_label: "Язык",
+                contact_content_placeholder: "Напишите контактную информацию здесь...",
+                contact_existing_translations: "Существующие переводы",
+                contact_translation_item: "перевод"
             },
             de: {
                 app_name_label: "Anwendungsname",
+                contact_settings_tab: "Kontakt",
                 tab_notes: "Notizen", tab_lessons: "Phrasen", tab_minutes: "Protokolle", tab_contact: "Kontakt",
                 add_note_btn: "Hinzufügen", add_phrase: "Hinzufügen", select_location: "Ort", minutes_header: "Protokolle",
-                add_sample: "Beispiel", contact_title: "Support", support_hours: "24/7 Notfallhilfe",
-                settings_title: "Einstellungen", locations_tab: "Arbeitsorte", tags_tab: "Tags", add_btn: "Hinzufügen",
+                add_sample: "Beispiel", settings_title: "Einstellungen", locations_tab: "Arbeitsorte", tags_tab: "Tags", add_btn: "Hinzufügen",
                 location_warning: "Sie können für jeden Ort Übersetzungen in allen Sprachen hinzufügen.",
                 tag_warning: "Sie können für jeden Tag Übersetzungen in allen Sprachen hinzufügen.",
                 filter_btn: "Filter", filter_tags_title: "Nach Tags filtern",
@@ -1865,14 +1945,19 @@
                 no_readings: "Noch keine Aussprache hinzugefügt",
                 original_text: "Originaltext",
                 reading_text_placeholder: "z.B. help (help)",
-                reading_help_text: "Schreiben Sie die Aussprache phonetisch"
+                reading_help_text: "Schreiben Sie die Aussprache phonetisch",
+                contact_content_label: "Kontaktinhalt",
+                contact_lang_label: "Sprache",
+                contact_content_placeholder: "Kontaktinformationen hier eingeben...",
+                contact_existing_translations: "Vorhandene Übersetzungen",
+                contact_translation_item: "Übersetzung"
             },
             fr: {
                 app_name_label: "Nom de l'application",
+                contact_settings_tab: "Contact",
                 tab_notes: "Notes", tab_lessons: "Phrases", tab_minutes: "PV", tab_contact: "Contact",
                 add_note_btn: "Ajouter", add_phrase: "Ajouter", select_location: "Lieu", minutes_header: "PV",
-                add_sample: "Exemple", contact_title: "Support", support_hours: "Assistance 24/7",
-                settings_title: "Paramètres", locations_tab: "Lieux", tags_tab: "Étiquettes", add_btn: "Ajouter",
+                add_sample: "Exemple", settings_title: "Paramètres", locations_tab: "Lieux", tags_tab: "Étiquettes", add_btn: "Ajouter",
                 location_warning: "Vous pouvez ajouter des traductions pour chaque lieu dans toutes les langues.",
                 tag_warning: "Vous pouvez ajouter des traductions pour chaque étiquette dans toutes les langues.",
                 filter_btn: "Filtrer", filter_tags_title: "Filtrer par étiquettes",
@@ -1951,14 +2036,19 @@
                 no_readings: "Aucune prononciation ajoutée",
                 original_text: "Texte original",
                 reading_text_placeholder: "Ex: help (help)",
-                reading_help_text: "Écrivez la prononciation phonétiquement"
+                reading_help_text: "Écrivez la prononciation phonétiquement",
+                contact_content_label: "Contenu du contact",
+                contact_lang_label: "Langue",
+                contact_content_placeholder: "Écrivez les informations de contact ici...",
+                contact_existing_translations: "Traductions existantes",
+                contact_translation_item: "traduction"
             },
             ar: {
                 app_name_label: "اسم التطبيق",
+                contact_settings_tab: "اتصال",
                 tab_notes: "ملاحظات", tab_lessons: "عبارات", tab_minutes: "محاضر", tab_contact: "اتصال",
                 add_note_btn: "إضافة", add_phrase: "إضافة", select_location: "موقع العمل", minutes_header: "المحاضر",
-                add_sample: "نموذج", contact_title: "دعم كانكور تاران", support_hours: "دعم طوارئ 24/7",
-                settings_title: "الإعدادات", locations_tab: "مواقع العمل", tags_tab: "الوسوم", add_btn: "إضافة",
+                add_sample: "نموذج", settings_title: "الإعدادات", locations_tab: "مواقع العمل", tags_tab: "الوسوم", add_btn: "إضافة",
                 location_warning: "يمكنك إضافة ترجمات لكل موقع بجميع اللغات.",
                 tag_warning: "يمكنك إضافة ترجمات لكل وسم بجميع اللغات.",
                 filter_btn: "تصفية", filter_tags_title: "تصفية حسب الوسوم",
@@ -2037,7 +2127,12 @@
                 no_readings: "لم تتم إضافة أي نطق بعد",
                 original_text: "النص الأصلي",
                 reading_text_placeholder: "مثال: help (هيلب)",
-                reading_help_text: "اكتب النطق صوتيًا"
+                reading_help_text: "اكتب النطق صوتيًا",
+                contact_content_label: "محتوى الاتصال",
+                contact_lang_label: "اللغة",
+                contact_content_placeholder: "اكتب معلومات الاتصال هنا...",
+                contact_existing_translations: "الترجمات الموجودة",
+                contact_translation_item: "ترجمة"
             }
         };
 
@@ -2063,7 +2158,7 @@
                     }
                 });
             }
-        }
+        }        
 
         // Global çevirileri kaydet
         function saveGlobalTranslations() {
@@ -2258,6 +2353,183 @@
             }
         }
 
+        // İletişim içeriklerini localStorage'dan yükle
+        function loadContactContents() {
+            const stored = localStorage.getItem("cankurtaran_contact_contents");
+            if (stored) {
+                contactContents = JSON.parse(stored);
+            } else {
+                // Varsayılan iletişim içerikleri
+                contactContents = {
+                    tr: "📞 +90 212 555 44 33\n✉️ destek@cankurtaran.com\n🆘 7/24 Acil Destek Hattı",
+                    en: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 24/7 Emergency Hotline",
+                    ru: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 Круглосуточная горячая линия",
+                    de: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 24/7 Notfall-Hotline",
+                    fr: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 Assistance téléphonique 24h/24 et 7j/7",
+                    ar: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 خط ساخن للطوارئ على مدار الساعة"
+                };
+                saveContactContents();
+            }
+            // İletişim sekmesindeki görüntüyü güncelle
+            updateContactTabDisplay();
+        }
+
+        // İletişim içeriklerini kaydet
+        function saveContactContents() {
+            localStorage.setItem("cankurtaran_contact_contents", JSON.stringify(contactContents));
+        }
+
+        // İletişim sekmesindeki görüntüyü güncelle (ana sekme)
+        function updateContactTabDisplay() {
+            const contactBox = document.querySelector('#contactTab .contact-box');
+            if (!contactBox) return;
+            
+            const content = contactContents[currentLang] || contactContents.tr || Object.values(contactContents)[0] || "";
+            const lines = content.split('\n').filter(line => line.trim());
+            
+            let html = ``;
+            lines.forEach(line => {
+                html += `<p class="mb-1 small">${escapeHtml(line)}</p>`;
+            });            
+            
+            contactBox.innerHTML = html;
+            
+            // i18n metinlerini tekrar uygula
+            const t = translations[currentLang];
+            if (t) {
+                contactBox.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if (t[key]) el.innerText = t[key];
+                });
+            }
+        }
+
+        // İletişim çevirileri listesini render et
+        function renderContactTranslationsList() {
+            const container = document.getElementById("contactTranslationsListContainer");
+            const t = translations[currentLang];
+            
+            let translationsArray = Object.entries(contactContents).map(([langCode, text]) => ({
+                langCode,
+                langName: languageList.find(l => l.code === langCode)?.name || langCode,
+                flag: languageList.find(l => l.code === langCode)?.flag || "🌐",
+                text: text
+            }));
+            
+            translationsArray.sort((a, b) => {
+                if (a.langCode === currentLang) return -1;
+                if (b.langCode === currentLang) return 1;
+                return a.langName.localeCompare(b.langName);
+            });
+            
+            if (translationsArray.length === 0) {
+                container.innerHTML = `<div class="text-muted text-center py-4 small">${t?.no_translations || 'Çeviri bulunamadı'}</div>`;
+                return;
+            }
+            
+            container.innerHTML = translationsArray.map(tItem => `
+                <div class="translation-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge-tag">${tItem.flag} ${tItem.langName}</span>
+                                <span class="small text-muted">${tItem.langCode}</span>
+                                ${tItem.langCode === currentLang ? `<span class="badge-tag bg-primary text-white ms-1">${t?.current_lang_badge || 'Mevcut Dil'}</span>` : ''}
+                            </div>
+                            <div class="small" style="white-space: pre-line;">${escapeHtml(tItem.text)}</div>
+                        </div>
+                        <div class="d-flex gap-2 ms-2">
+                            <button class="btn btn-sm btn-link text-primary p-0 edit-contact-translation" data-lang="${tItem.langCode}" data-text="${escapeHtml(tItem.text)}">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button class="btn btn-sm btn-link text-danger p-0 delete-contact-translation" data-lang="${tItem.langCode}">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Event listener'ları ekle
+            document.querySelectorAll('.delete-contact-translation').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const langCode = btn.getAttribute('data-lang');
+                    if (Object.keys(contactContents).length <= 1) {
+                        alert(currentLang === 'tr' ? 'En az bir iletişim içeriği olmalıdır!' : 'At least one contact content is required!');
+                        return;
+                    }
+                    delete contactContents[langCode];
+                    saveContactContents();
+                    renderContactTranslationsList();
+                    updateContactTabDisplay();
+                });
+            });
+            
+            document.querySelectorAll('.edit-contact-translation').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const langCode = btn.getAttribute('data-lang');
+                    const text = btn.getAttribute('data-text');
+                    startContactEdit(langCode, text);
+                });
+            });
+        }
+
+        // İletişim içeriği düzenlemeyi başlat
+        function startContactEdit(langCode, currentText) {
+            contactEditingMode = true;
+            contactEditingOriginalLang = langCode;
+            
+            const t = translations[currentLang];
+            document.getElementById("contactFormTitleText").innerHTML = `<i class="bi bi-pencil-square"></i> ${t?.edit_translation || 'İçeriği Düzenle'}`;
+            document.getElementById("contactSaveBtnText").innerHTML = `<i class="bi bi-save"></i> ${t?.update_btn || 'Güncelle'}`;
+            document.getElementById("cancelContactEditBtn").style.display = "inline-block";
+            
+            const langSelect = document.getElementById("contactLangSelect");
+            langSelect.value = langCode;
+            langSelect.disabled = true;
+            
+            document.getElementById("contactContentInput").value = currentText;
+            document.getElementById("editingContactLang").value = langCode;
+            document.getElementById("contactContentInput").focus();
+        }
+
+        // İletişim içeriği düzenlemeyi iptal et
+        function cancelContactEdit() {
+            contactEditingMode = false;
+            contactEditingOriginalLang = null;
+            
+            const t = translations[currentLang];
+            document.getElementById("contactFormTitleText").innerHTML = `<i class="bi bi-plus-circle"></i> ${t?.new_translation || 'Yeni İçerik Ekle'}`;
+            document.getElementById("contactSaveBtnText").innerHTML = `<i class="bi bi-save"></i> ${t?.save_btn || 'Kaydet'}`;
+            document.getElementById("cancelContactEditBtn").style.display = "none";
+            
+            const langSelect = document.getElementById("contactLangSelect");
+            langSelect.disabled = false;
+            langSelect.value = currentLang;
+            
+            document.getElementById("contactContentInput").value = "";
+            document.getElementById("editingContactLang").value = "";
+        }
+
+        // İletişim sekmesi UI'ını güncelle (dil değiştiğinde)
+        function updateContactSettingsUI() {
+            const t = translations[currentLang];
+            
+            document.getElementById("contactFormTitleText").innerHTML = `<i class="bi bi-plus-circle"></i> ${t?.new_translation || 'Yeni İçerik Ekle'}`;
+            document.getElementById("contactLangLabel").innerHTML = `<span class="small fw-semibold">${t?.contact_lang_label || 'Dil'}</span>`;
+            document.getElementById("contactContentLabel").innerHTML = `<span class="small fw-semibold">${t?.contact_content_label || 'İçerik'}</span>`;
+            document.getElementById("contactSaveBtnText").innerHTML = `<i class="bi bi-save"></i> ${t?.save_btn || 'Kaydet'}`;
+            document.getElementById("contactCancelBtnText").innerText = t?.cancel_btn || 'İptal';
+            document.getElementById("contactExistingTranslationsText").innerText = t?.contact_existing_translations || 'Mevcut Çeviriler';
+            
+            const contentInput = document.getElementById("contactContentInput");
+            if (contentInput && t?.contact_content_placeholder) {
+                contentInput.placeholder = t.contact_content_placeholder;
+            }
+            
+            renderContactTranslationsList();
+        }
+
         let currentAudio = null;
         let currentSpeakingId = null;
         let currentCancelFn = null;
@@ -2266,6 +2538,11 @@
         let isPronunciationRecording = false;
         let pronunciationTooltip = null;
         let pronunciationTimeout = null;
+
+        // İletişim içerikleri için değişkenler
+        let contactContents = {};
+        let contactEditingMode = false;
+        let contactEditingOriginalLang = null;
 
         function setRTL(lang) {
             document.body.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
@@ -3790,12 +4067,54 @@
 
         document.getElementById("cancelMinuteEditBtn")?.addEventListener("click", cancelMinuteEdit);
 
+        // İletişim içeriği ekleme/güncelleme 
+        document.getElementById("addContactContentBtn")?.addEventListener("click", () => {
+            const langCode = document.getElementById("contactLangSelect").value;
+            const content = document.getElementById("contactContentInput").value;
+            
+            if (!content.trim()) return;
+            
+            // Düzenleme modunda değilse ve bu dilde zaten içerik varsa → hata
+            if (!contactEditingMode && contactContents[langCode]) {
+                alert(translations[currentLang]?.translation_exists || 'Bu dilde zaten bir içerik var!');
+                return;
+            }
+            
+            // Düzenleme modunda ve seçilen dil, düzenlenen orijinal dilden farklıysa ve o dilde zaten içerik varsa → hata
+            if (contactEditingMode && langCode !== contactEditingOriginalLang && contactContents[langCode]) {
+                alert(translations[currentLang]?.translation_exists || 'Bu dilde zaten bir içerik var!');
+                return;
+            }
+            
+            if (contactEditingMode) {
+                // Düzenleme modu: orijinal dil kodunu kaldır, yeni dil koduna ekle
+                if (contactEditingOriginalLang !== langCode) {
+                    delete contactContents[contactEditingOriginalLang];
+                }
+                contactContents[langCode] = content.trim();
+                cancelContactEdit();
+            } else {
+                // Yeni ekleme modu: sadece yoksa ekle
+                contactContents[langCode] = content.trim();
+            }
+            
+            saveContactContents();
+            renderContactTranslationsList();
+            updateContactTabDisplay();
+            
+            document.getElementById("contactContentInput").value = "";
+        });
+
+        document.getElementById("cancelContactEditBtn")?.addEventListener("click", cancelContactEdit);
+
+
         // --- LOKASYON UI RENDER ---
         function renderAllLocationUI() {
             renderLocationSelects();
             renderNotes();
             renderPhrases();
             renderLocationsList();
+            updateContactSettingsUI();
         }
 
         function renderLocationSelects() {
@@ -4910,65 +5229,67 @@
                 }).join(" ");
 
                 return `<div class="note-card">
-                <div class="d-flex justify-content-between">
-                    <div class="flex-grow-1">
-                        <div class="d-flex gap-2 mb-1 flex-wrap align-items-center">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex gap-2 flex-wrap align-items-center">
                             <span class="location-tag"><i class="bi bi-pin-map"></i> ${escapeHtml(getLocationDisplayName(m.locationId))}</span>
-                            ${filterMinuteLanguage !== "all" ? `<span class="badge-tag bg-info text-white ms-1">${filterMinuteLanguage === 'tr' ? '🇹🇷 Türkçe' : filterMinuteLanguage === 'en' ? '🇬🇧 English' : filterMinuteLanguage === 'ru' ? '🇷🇺 Русский' : filterMinuteLanguage === 'de' ? '🇩🇪 Deutsch' : filterMinuteLanguage === 'fr' ? '🇫🇷 Français' : '🇸🇦 العربية'}</span>` : ''}
-                            
+                            ${filterMinuteLanguage !== "all" ? `<span class="badge-tag bg-info text-white">${filterMinuteLanguage === 'tr' ? '🇹🇷 Türkçe' : filterMinuteLanguage === 'en' ? '🇬🇧 English' : filterMinuteLanguage === 'ru' ? '🇷🇺 Русский' : filterMinuteLanguage === 'de' ? '🇩🇪 Deutsch' : filterMinuteLanguage === 'fr' ? '🇫🇷 Français' : '🇸🇦 العربية'}</span>` : ''}
                             <span class="timestamp">${m.date}</span>
                             ${availableLangs ? `<span class="badge-tag bg-light text-dark" title="${t?.existing_languages || 'Mevcut diller'}: ${availableLangs}"><i class="bi bi-translate"></i> ${availableLangs}</span>` : ''}
                         </div>
-                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                            <div class="fw-medium">${escapeHtml(displayTitle)}</div>
-                            <div class="icon-group">
-                                <div class="speak-icon minute-speak" data-text="${escapeHtml(displayTitle)}" data-lang="${currentSpeechLang()}" data-id="minute_title_${originalIdx}">
-                                    <i class="bi bi-volume-up"></i>
-                                </div>
-                                <div class="mic-icon minute-mic" data-text="${escapeHtml(displayTitle)}" data-lang="${currentSpeechLang()}" title="${t?.check_pronunciation || 'Telaffuz kontrolü'}">
-                                    <i class="bi bi-mic"></i>
-                                </div>
+                        <div class="d-flex gap-2">
+                            <div class="pdf-icon minute-pdf" data-idx="${originalIdx}" title="${t?.download_pdf || 'PDF Olarak İndir'}">
+                                <i class="bi bi-file-pdf"></i>
                             </div>
-                        </div>
-                        <div class="small mb-1">
-                            ${escapeHtml(displayContent)}
-                            <div class="icon-group d-inline-flex ms-2">
-                                <div class="speak-icon minute-content-speak" data-text="${escapeHtml(displayContent)}" data-lang="${currentSpeechLang()}" data-id="minute_content_${originalIdx}" style="width: 20px; height: 20px; font-size: 0.75rem;">
-                                    <i class="bi bi-volume-up"></i>
-                                </div>
-                                <div class="mic-icon minute-content-mic" data-text="${escapeHtml(displayContent)}" data-lang="${currentSpeechLang()}" title="${t?.check_pronunciation || 'Telaffuz kontrolü'}" style="width: 20px; height: 20px; font-size: 0.75rem;">
-                                    <i class="bi bi-mic"></i>
-                                </div>
+                            <div class="print-icon minute-print" data-idx="${originalIdx}" title="${t?.print_btn || 'Yazdır'}">
+                                <i class="bi bi-printer"></i>
                             </div>
-                        </div>
-                        ${minuteData?.evaluation ? `
-                        <div class="small text-muted mt-2 pt-1 border-top">
-                            <strong>📌</strong> ${escapeHtml(minuteData.evaluation)}
-                            <div class="icon-group d-inline-flex ms-2">
-                                <div class="speak-icon minute-eval-speak" data-text="${escapeHtml(minuteData.evaluation)}" data-lang="${currentSpeechLang()}" data-id="minute_eval_${originalIdx}" style="width: 20px; height: 20px; font-size: 0.75rem;">
-                                    <i class="bi bi-volume-up"></i>
-                                </div>
-                                <div class="mic-icon minute-eval-mic" data-text="${escapeHtml(minuteData.evaluation)}" data-lang="${currentSpeechLang()}" title="${t?.check_pronunciation || 'Telaffuz kontrolü'}" style="width: 20px; height: 20px; font-size: 0.75rem;">
-                                    <i class="bi bi-mic"></i>
-                                </div>
+                            <div class="translate-icon minute-translate" data-idx="${originalIdx}" title="${t?.translate_btn || 'Çeviriler'}">
+                                <i class="bi bi-translate"></i>
                             </div>
-                        </div>
-                        ` : ''}
-                    </div>
-                    <div class="d-flex gap-2 ms-2">
-                        <div class="pdf-icon minute-pdf" data-idx="${originalIdx}" title="${t?.download_pdf || 'PDF Olarak İndir'}">
-                            <i class="bi bi-file-pdf"></i>
-                        </div>
-                        <div class="print-icon minute-print" data-idx="${originalIdx}" title="${t?.print_btn || 'Yazdır'}">
-                            <i class="bi bi-printer"></i>
-                        </div>
-                        <div class="translate-icon minute-translate" data-idx="${originalIdx}" title="${t?.translate_btn || 'Çeviriler'}">
-                            <i class="bi bi-translate"></i>
-                        </div>
-                        <div class="delete-icon minute-delete" data-idx="${originalIdx}">
-                            <i class="bi bi-trash3"></i>
+                            <div class="delete-icon minute-delete" data-idx="${originalIdx}">
+                                <i class="bi bi-trash3"></i>
+                            </div>
                         </div>
                     </div>
+                    
+                    <div class="minute-title-row">
+                        <span class="minute-title-text">${escapeHtml(displayTitle)}</span>
+                        <span class="minute-title-icons">
+                            <span class="speak-icon minute-speak" data-text="${escapeHtml(displayTitle)}" data-lang="${currentSpeechLang()}" data-id="minute_title_${originalIdx}">
+                                <i class="bi bi-volume-up"></i>
+                            </span>
+                            <span class="mic-icon minute-mic" data-text="${escapeHtml(displayTitle)}" data-lang="${currentSpeechLang()}" title="${t?.check_pronunciation || 'Telaffuz kontrolü'}">
+                                <i class="bi bi-mic"></i>
+                            </span>
+                        </span>
+                    </div>
+                    
+                    <div class="small mb-2" style="word-break: break-word; white-space: normal;">
+                        ${escapeHtml(displayContent)}
+                        <span class="icon-group d-inline-flex ms-2" style="vertical-align: middle;">
+                            <span class="speak-icon minute-content-speak" data-text="${escapeHtml(displayContent)}" data-lang="${currentSpeechLang()}" data-id="minute_content_${originalIdx}" style="width: 20px; height: 20px; font-size: 0.75rem;">
+                                <i class="bi bi-volume-up"></i>
+                            </span>
+                            <span class="mic-icon minute-content-mic" data-text="${escapeHtml(displayContent)}" data-lang="${currentSpeechLang()}" title="${t?.check_pronunciation || 'Telaffuz kontrolü'}" style="width: 20px; height: 20px; font-size: 0.75rem;">
+                                <i class="bi bi-mic"></i>
+                            </span>
+                        </span>
+                    </div>
+                    
+                    ${minuteData?.evaluation ? `
+                    <div class="small text-muted mt-2 pt-2 border-top" style="word-break: break-word; white-space: normal;">
+                        <strong>📌</strong> ${escapeHtml(minuteData.evaluation)}
+                        <span class="icon-group d-inline-flex ms-2" style="vertical-align: middle;">
+                            <span class="speak-icon minute-eval-speak" data-text="${escapeHtml(minuteData.evaluation)}" data-lang="${currentSpeechLang()}" data-id="minute_eval_${originalIdx}" style="width: 20px; height: 20px; font-size: 0.75rem;">
+                                <i class="bi bi-volume-up"></i>
+                            </span>
+                            <span class="mic-icon minute-eval-mic" data-text="${escapeHtml(minuteData.evaluation)}" data-lang="${currentSpeechLang()}" title="${t?.check_pronunciation || 'Telaffuz kontrolü'}" style="width: 20px; height: 20px; font-size: 0.75rem;">
+                                <i class="bi bi-mic"></i>
+                            </span>
+                        </span>
+                    </div>
+                    ` : ''}
                 </div>
             </div>`;
             }).join('');
@@ -5209,9 +5530,12 @@
             localStorage.removeItem("cankurtaran_minute_location");
             localStorage.removeItem("cankurtaran_minute_language");
             localStorage.removeItem("cankurtaran_minute_search");
-
+            
             // Global çevirileri de sıfırla
             localStorage.removeItem("cankurtaran_global_translations");
+            
+            // İletişim içeriklerini de sıfırla (YENİ EKLENDİ)
+            localStorage.removeItem("cankurtaran_contact_contents");
 
             // Global çevirileri varsayılana döndür
             globalTranslations = {
@@ -5220,6 +5544,16 @@
                 print_unit_supervisor: { tr: "Birim Sorumlusu", en: "Unit Supervisor", ru: "Руководитель подразделения", de: "Einheitsleiter", fr: "Superviseur d'Unité", ar: "مشرف الوحدة" },
                 print_footer_text: { tr: "Bu belge Cankurtaran Sistemleri tarafından elektronik olarak düzenlenmiştir. 5070 sayılı Elektronik İmza Kanunu kapsamında geçerlidir.", en: "This document has been electronically issued by Cankurtaran Systems. It is valid within the scope of the Electronic Signature Law No. 5070.", ru: "Этот документ был составлен в электронном виде системой Cankurtaran. Действителен в соответствии с Законом об электронной подписи № 5070.", de: "Dieses Dokument wurde elektronisch von Cankurtaran Systems erstellt. Es ist im Rahmen des Elektronischen Signaturgesetzes Nr. 5070 gültig.", fr: "Ce document a été émis électroniquement par Cankurtaran Systems. Il est valable dans le cadre de la Loi sur la signature électronique n° 5070.", ar: "تم إصدار هذا المستند إلكترونيًا بواسطة نظام Cankurtaran. وهو صالح في نطاق قانون التوقيع الإلكتروني رقم 5070." },
                 print_evaluation_title: { tr: "📋 DEĞERLENDİRME VE ALINAN KARARLAR", en: "📋 EVALUATION AND DECISIONS", ru: "📋 ОЦЕНКА И ПРИНЯТЫЕ РЕШЕНИЯ", de: "📋 BEWERTUNG UND GETROFFENE ENTSCHEIDUNGEN", fr: "📋 ÉVALUATION ET DÉCISIONS PRISES", ar: "📋 التقييم والقرارات المتخذة" }
+            };
+
+            // İletişim içeriklerini varsayılana döndür (YENİ EKLENDİ)
+            contactContents = {
+                tr: "📞 +90 212 555 44 33\n✉️ destek@cankurtaran.com\n🆘 7/24 Acil Destek Hattı",
+                en: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 24/7 Emergency Hotline",
+                ru: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 Круглосуточная горячая линия",
+                de: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 24/7 Notfall-Hotline",
+                fr: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 Assistance téléphonique 24h/24 et 7j/7",
+                ar: "📞 +90 212 555 44 33\n✉️ support@cankurtaran.com\n🆘 خط ساخن للطوارئ على مدار الساعة"
             };
 
             // Dili varsayılana (Türkçe) sıfırla
@@ -5247,6 +5581,9 @@
             renderNotes();
             renderPhrases();
             renderMinutes();
+            
+            // İletişim sekmesini güncelle (YENİ EKLENDİ)
+            updateContactTabDisplay();
 
             // Dili uygula (RTL ve metinler için)
             setLanguage("tr");
@@ -5352,7 +5689,7 @@
             const allLanguagesOption = document.querySelector('#filterPhraseLanguage option[value="all"]');
             if (allLanguagesOption) {
                 allLanguagesOption.textContent = t?.all_languages || '🌐 Tüm diller';
-            }
+            }        
 
             // Notların timestamp'lerini yeni dile göre güncelle
             notesArray.forEach(note => {
@@ -5376,8 +5713,8 @@
             renderTagsList();
             renderNotes();
             renderPhrases();
-            renderMinutes();
-
+            renderMinutes();            
+            updateContactTabDisplay();
 
             // Okunuş modalı açıksa placeholder'ları güncelle
             const readingModal = document.getElementById("phraseReadingModal");
@@ -5597,6 +5934,11 @@
             }
         });
 
+        // Settings modal açıldığında iletişim sekmesi UI'ını güncelle
+        document.getElementById('settingsModal').addEventListener('shown.bs.modal', function () {
+            updateContactSettingsUI();
+        });
+
         // --- BAŞLAT ---
         loadLocations();
         loadTags();
@@ -5611,6 +5953,8 @@
         renderNotes();
         renderPhrases();
         renderMinutes();
+        loadContactContents();        
+        updateContactSettingsUI();
         setLanguage(currentLang);
         restoreActiveTab();
         recognition = initSpeech();
