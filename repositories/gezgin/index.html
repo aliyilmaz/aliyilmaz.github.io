@@ -3517,6 +3517,7 @@
             savePhrases();
             renderPhraseReadingsList();
             renderPhraseTranslationsList(); // Ana listeyi de güncelle
+            renderPhrases(); // İfadeler listesini de güncelle
         }
 
         function startReadingEdit(langCode, currentText) {
@@ -3579,6 +3580,7 @@
             savePhrases();
             renderPhraseReadingsList();
             renderPhraseTranslationsList(); // Ana listeyi de güncelle
+            renderPhrases(); // İfadeler listesini de güncelle (okunuş göstergesi için)
 
             document.getElementById("readingTextInput").value = "";
         }
@@ -4812,11 +4814,26 @@
             const phraseText = document.getElementById("newPhraseInput").value;
             const locationId = document.getElementById("phraseLocationSelect").value;
             const lang = document.getElementById("phraseLangSelect").value;
-            const displayTags = phraseTagsTagify ? phraseTagsTagify.value.map(v => v.value) : [];
+
+            if (!phraseText.trim()) return;
+            if (!locationId) {
+                alert(translations[currentLang]?.select_location_alert || 'Lutfen bir gorev yeri secin.');
+                return;
+            }
+
+            // phraseTagsTagify mobilde henuz baslatilmamis olabilir; guvenli sekilde oku
+            let displayTags = [];
+            try {
+                displayTags = phraseTagsTagify ? phraseTagsTagify.value.map(v => v.value) : [];
+            } catch (e) {
+                displayTags = [];
+            }
             const tagKeys = displayTags.map(t => getTagKeyFromDisplay(t));
             addPhrase(phraseText, locationId, lang, tagKeys);
             document.getElementById("newPhraseInput").value = "";
-            if (phraseTagsTagify) phraseTagsTagify.removeAllTags();
+            try {
+                if (phraseTagsTagify) phraseTagsTagify.removeAllTags();
+            } catch (e) { /* ignore */ }
         }
 
         // --- TUTANAKLAR & SES ---
